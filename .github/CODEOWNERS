@@ -1,20 +1,24 @@
-# Ownership map (replace placeholder handles with real GitHub usernames).
-# Enforces the layer boundaries from docs/master-plan.md at review time.
+# Ownership map — real GitHub usernames. Enforces the layer boundaries from
+# docs/master-plan.md at review time. Update here if a person's handle changes.
+#
+# Nashat = @ahmednashatnoaman-svg   Emad  = @3omdawy11
+# Nagy   = @mohamed-nagy11          Hatem = @mohamed-hatem-saleh
+# Ziad   = @ZeyadMahmoudAmrMohamed
 
 # Shared contracts + libs + CI: tech lead (Nashat) + adjacent-owner review
-/contracts/            # @nashat @emad @hatem
-/libs/                 # @nashat
-/.github/              # @nashat @nagy
+/contracts/            @ahmednashatnoaman-svg @3omdawy11 @mohamed-hatem-saleh
+/libs/                 @ahmednashatnoaman-svg
+/.github/              @ahmednashatnoaman-svg @mohamed-nagy11
 
 # Layer ownership
-/infra/                # @nagy
-/ingestion/            # @hatem
-/batch/                # @emad
-/streaming/            # @nashat
-/automation/           # @ziad
+/infra/                @mohamed-nagy11
+/ingestion/            @mohamed-hatem-saleh
+/batch/                @3omdawy11
+/streaming/            @ahmednashatnoaman-svg
+/automation/           @ZeyadMahmoudAmrMohamed
 
 # Financial workstream
-/streaming/pricing/    # @nashat
-/automation/finance/   # @ziad
-/docs/reference/pricing-strategy.md   # @nashat
-/docs/reference/financial-model.md    # @ziad
+/streaming/pricing/    @ahmednashatnoaman-svg
+/automation/finance/   @ZeyadMahmoudAmrMohamed
+/docs/reference/pricing-strategy.md   @ahmednashatnoaman-svg
+/docs/reference/financial-model.md    @ZeyadMahmoudAmrMohamed
