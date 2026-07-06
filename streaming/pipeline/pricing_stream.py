@@ -15,7 +15,7 @@ docs/plans/nashat-plan.md for the tracked follow-up.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import redis as redis_lib
@@ -191,7 +191,7 @@ def process_batch(
     redis = get_redis()
     price_out = pricing_producer()
     alert_out = alert_producer()
-    now_ms = int(datetime.now(UTC).timestamp() * 1000)
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     for row in batch_df.collect():
         try:
