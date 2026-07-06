@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "SystemAlert",
+  "namespace": "com.scf.contracts",
+  "doc": "Operational alert emitted by the speed layer (e.g. low stock during a surge).",
+  "fields": [
+    { "name": "event_time", "type": "long", "logicalType": "timestamp-millis" },
+    { "name": "item_id", "type": "long", "doc": "Product SKU. Partition key." },
+    { "name": "alert_type", "type": { "type": "enum", "name": "AlertType",
+        "symbols": ["LOW_STOCK", "SURGE", "PRICE_CAP_HIT"] } },
+    { "name": "stock_level", "type": "int" },
+    { "name": "reorder_threshold", "type": "int" },
+    { "name": "message", "type": "string" }
+  ]
+}

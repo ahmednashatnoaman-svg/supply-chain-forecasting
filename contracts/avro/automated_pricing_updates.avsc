@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "PricingUpdate",
+  "namespace": "com.scf.contracts",
+  "doc": "Final dynamic price decision emitted by the speed layer.",
+  "fields": [
+    { "name": "event_time", "type": "long", "logicalType": "timestamp-millis" },
+    { "name": "item_id", "type": "long", "doc": "Product SKU. Partition key." },
+    { "name": "base_price", "type": "double" },
+    { "name": "new_price", "type": "double" },
+    { "name": "velocity", "type": "double", "doc": "Windowed sales velocity." },
+    { "name": "baseline", "type": "double", "doc": "MLlib baseline forecast used." },
+    { "name": "surge_prob", "type": "double", "doc": "LSTM surge probability [0,1]." },
+    { "name": "reason", "type": "string", "doc": "Human-readable decision explanation." }
+  ]
+}

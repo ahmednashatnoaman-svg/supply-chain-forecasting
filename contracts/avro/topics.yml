@@ -1,0 +1,34 @@
+# Kafka topic declarations — consumed by scripts/bootstrap.sh (single source of truth).
+# Changing partitions/replication is a contract change (PR reviewed by adjacent owners).
+topics:
+  - name: live_web_traffic
+    partitions: 6
+    replication_factor: 1        # 1 for local single-broker; raise in cloud manifests
+    key: item_id
+    schema: live_web_traffic.avsc
+    producer: hatem
+    consumers: [nashat, emad]
+
+  - name: inventory_updates
+    partitions: 3
+    replication_factor: 1
+    key: item_id
+    schema: inventory_updates.avsc
+    producer: hatem
+    consumers: [nashat]
+
+  - name: system_alerts
+    partitions: 3
+    replication_factor: 1
+    key: item_id
+    schema: system_alerts.avsc
+    producer: nashat
+    consumers: [ziad]
+
+  - name: automated_pricing_updates
+    partitions: 6
+    replication_factor: 1
+    key: item_id
+    schema: automated_pricing_updates.avsc
+    producer: nashat
+    consumers: [ziad]

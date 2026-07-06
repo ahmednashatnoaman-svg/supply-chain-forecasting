@@ -1,0 +1,21 @@
+{
+  "model": "surge_classifier",
+  "framework": "pytorch (local training + inference, zero-cost)",
+  "registry": "mlflow (local)",
+  "input": {
+    "name": "sequence",
+    "dtype": "float32",
+    "shape": [50, 4],
+    "features": ["velocity", "view_count", "addtocart_count", "price_delta"],
+    "doc": "Last 50 per-SKU time steps, 4 features each."
+  },
+  "output": {
+    "name": "surge_prob",
+    "dtype": "float32",
+    "shape": [1],
+    "range": [0.0, 1.0],
+    "doc": "Probability the SKU is in a viral surge."
+  },
+  "fallback": "If the model artifact is unavailable, inference returns 0.0 (velocity-only pricing).",
+  "consumers": ["streaming.lstm.infer.surge_udf", "streaming.pipeline.pricing_stream"]
+}

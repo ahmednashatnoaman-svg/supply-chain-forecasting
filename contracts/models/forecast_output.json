@@ -1,0 +1,12 @@
+{
+  "model": "demand_forecast",
+  "framework": "spark-mllib-gbt",
+  "registry": "mlflow (local, zero-cost)",
+  "output_schema": {
+    "fields": [
+      { "name": "item_id", "type": "long", "doc": "Product SKU." },
+      { "name": "forecast_demand", "type": "double", "doc": "30-day baseline demand, clamped >= 0." }
+    ]
+  },
+  "consumers": ["batch.publish.to_redis", "streaming.pipeline.pricing_stream (via Redis forecast:{sku})"]
+}
