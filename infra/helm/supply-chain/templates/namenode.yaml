@@ -1,0 +1,98 @@
+# Hadoop HDFS Namenode Deployment + Service.
+# Mirrors namenode / datanode services in docker-compose.yml.
+# Volumes are intentionally omitted here — use a StorageClass in production.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-namenode
+  labels:
+    app: namenode
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: namenode
+  template:
+    metadata:
+      labels:
+        app: namenode
+    spec:
+      hostname: namenode
+      containers:
+        - name: namenode
+          image: {{ .Values.hdfs.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["hdfs", "namenode"]
+          env:
+            - name: ENSURE_NAMENODE_DIR
+              value: /tmp/hadoop-root/dfs/name
+            - name: CORE-SITE.XML_fs.defaultFS
+              value: hdfs://namenode:9000
+            - name: CORE-SITE.XML_hadoop.http.staticuser.user
+              value: root
+            - name: HDFS-SITE.XML_dfs.replication
+              value: "1"
+            - name: HDFS-SITE.XML_dfs.namenode.rpc-bind-host
+              value: "0.0.0.0"
+            - name: HDFS-SITE.XML_dfs.permissions.enabled
+              value: "false"
+          ports:
+            - name: rpc
+              containerPort: 9000
+            - name: http
+              containerPort: 9870
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9870
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-namenode
+spec:
+  selector:
+    app: namenode
+  ports:
+    - name: rpc
+      port: 9000
+      targetPort: 9000
+    - name: http
+      port: 9870
+      targetPort: 9870
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-datanode
+  labels:
+    app: datanode
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datanode
+  template:
+    metadata:
+      labels:
+        app: datanode
+    spec:
+      containers:
+        - name: datanode
+          image: {{ .Values.hdfs.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["hdfs", "datanode"]
+          env:
+            - name: CORE-SITE.XML_fs.defaultFS
+              value: hdfs://{{ .Release.Name }}-namenode:9000
+            - name: HDFS-SITE.XML_dfs.replication
+              value: "1"
+            - name: HDFS-SITE.XML_dfs.permissions.enabled
+              value: "false"
