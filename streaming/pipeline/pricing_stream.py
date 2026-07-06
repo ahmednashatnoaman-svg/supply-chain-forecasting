@@ -3,6 +3,7 @@
 Reads live_web_traffic (Avro) -> windowed velocity -> LSTM surge -> dynamic_price (reading Redis
 forecast/elasticity) -> emits automated_pricing_updates + system_alerts. Emits metrics + logs.
 """
+
 from __future__ import annotations
 
 from libs.scf_common.config import settings

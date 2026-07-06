@@ -1,4 +1,5 @@
 """Unit test for the dashboard Redis source (Ziad plan Task 1). Uses fakeredis (free)."""
+
 import pytest
 
 fakeredis = pytest.importorskip("fakeredis")
@@ -10,7 +11,9 @@ pytestmark = pytest.mark.unit
 def fake_redis(monkeypatch):
     client = fakeredis.FakeStrictRedis(decode_responses=True)
     monkeypatch.setattr("libs.scf_common.io.redis_client.get_redis", lambda: client, raising=True)
-    monkeypatch.setattr("automation.dashboard.components.redis_source.get_redis", lambda: client, raising=True)
+    monkeypatch.setattr(
+        "automation.dashboard.components.redis_source.get_redis", lambda: client, raising=True
+    )
     return client
 
 

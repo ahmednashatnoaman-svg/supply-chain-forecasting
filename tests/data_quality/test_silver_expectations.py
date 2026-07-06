@@ -2,6 +2,7 @@
 
 Asserts contract invariants: event_time non-null, item_id > 0, event in the allowed set.
 """
+
 import pytest
 
 pytestmark = pytest.mark.data_quality

@@ -1,6 +1,7 @@
 """Shared pytest fixtures. The `spark` fixture is session-scoped and local; integration/e2e tests
 that need real services use testcontainers within their own modules.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -9,7 +10,7 @@ import pytest
 @pytest.fixture(scope="session")
 def spark():
     """Local SparkSession for chispa DataFrame tests. Skips if pyspark is unavailable."""
-    pyspark = pytest.importorskip("pyspark")
+    pytest.importorskip("pyspark")
     from pyspark.sql import SparkSession
 
     session = (

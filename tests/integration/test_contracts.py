@@ -1,5 +1,6 @@
 """Contract test suite (master-plan §4). Ensures every Avro schema loads and every contract file
 resolves. Pure file checks — runs in CI on every PR."""
+
 import json
 from pathlib import Path
 

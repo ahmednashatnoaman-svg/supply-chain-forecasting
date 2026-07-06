@@ -3,6 +3,7 @@
 Thin entrypoint: navigation + shared config. Each page module owns one view and reads data via
 `components.redis_source` (unit-tested). Launch with `make dashboard`.
 """
+
 from __future__ import annotations
 
 import streamlit as st

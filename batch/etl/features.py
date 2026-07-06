@@ -1,4 +1,5 @@
 """Silver -> Gold feature engineering (rolling velocity). Implements Emad plan Task 2."""
+
 from __future__ import annotations
 
 from pyspark.sql import DataFrame, Window

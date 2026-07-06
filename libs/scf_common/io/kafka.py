@@ -3,6 +3,7 @@
 Thin wrappers over confluent-kafka so layers never wire serializers by hand. Schemas are loaded from
 the repo `contracts/avro/` directory by filename.
 """
+
 from __future__ import annotations
 
 import json

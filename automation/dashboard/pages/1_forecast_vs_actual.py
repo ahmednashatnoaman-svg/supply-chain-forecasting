@@ -1,4 +1,5 @@
 """Forecast-vs-actual view. Implements Ziad plan Task 5 (page 1)."""
+
 from __future__ import annotations
 
 import plotly.graph_objects as go
@@ -18,7 +19,9 @@ def render(source=None):
     forecast = [source.get_forecast(s) or 0 for s in skus]
     fig = go.Figure()
     fig.add_bar(x=[str(s) for s in skus], y=forecast, name="Baseline forecast")
-    fig.update_layout(title="Baseline demand forecast by SKU", xaxis_title="SKU", yaxis_title="Demand")
+    fig.update_layout(
+        title="Baseline demand forecast by SKU", xaxis_title="SKU", yaxis_title="Demand"
+    )
     return fig
 
 

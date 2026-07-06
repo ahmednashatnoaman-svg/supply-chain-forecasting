@@ -3,6 +3,7 @@
 Scans pyproject.toml + compose files against a denylist. (Nashat, plan Task 6.)
 Exit 0 = clean; exit 1 = a paid dependency was found.
 """
+
 from __future__ import annotations
 
 import sys

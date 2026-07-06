@@ -1,4 +1,5 @@
 """Avro Kafka sinks for the streaming layer. Implements Nashat plan Task 5 (sink side)."""
+
 from __future__ import annotations
 
 from libs.scf_common.contracts import Topics

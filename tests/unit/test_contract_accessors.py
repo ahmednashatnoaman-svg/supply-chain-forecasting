@@ -1,4 +1,5 @@
 """Unit tests for the shared contract accessors (Nashat plan Task 1). Pure — no services."""
+
 import pytest
 
 from libs.scf_common.contracts import HdfsPaths, RedisKeys, Topics

@@ -1,4 +1,5 @@
 """Unit tests for the reorder payload builder (Ziad plan Task 2). Pure."""
+
 import pytest
 
 from automation.n8n.alert_bridge import build_reorder

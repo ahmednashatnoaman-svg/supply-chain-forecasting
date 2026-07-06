@@ -1,4 +1,5 @@
 """Live price ticker view. Implements Ziad plan Task 5 (page 2)."""
+
 from __future__ import annotations
 
 import plotly.graph_objects as go

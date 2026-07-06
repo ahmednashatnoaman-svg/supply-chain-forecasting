@@ -10,6 +10,7 @@ only governs how that number is *presented*. Ethical guardrails (from the price-
 
 References: Ariely et al. 2003 (anchoring/decoys), left-digit effect (charm pricing).
 """
+
 from __future__ import annotations
 
 import math
@@ -67,7 +68,11 @@ def present_price(new_price: float, base_price: float, cfg: PsychologyConfig) ->
     # "changed" is judged on the ECONOMIC price (pre-charm), so charm rounding never invents an anchor.
     changed = abs(guarded - base_price) >= 0.01
     anchor = round(base_price, 2) if changed else None
-    note = "surge-premium" if changed and guarded > base_price else ("adjusted" if changed else "baseline")
+    note = (
+        "surge-premium"
+        if changed and guarded > base_price
+        else ("adjusted" if changed else "baseline")
+    )
     return PricePresentation(display, anchor, _pct(display, base_price), note)
 
 

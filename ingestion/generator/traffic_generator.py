@@ -3,6 +3,7 @@
 Replays events in timestamp order, applies a SurgeSchedule to compress inter-event delays during
 surges, and produces contract-conformant Avro to `live_web_traffic`.
 """
+
 from __future__ import annotations
 
 import argparse

@@ -1,4 +1,5 @@
 """Unit tests for honest price-presentation psychology (Nashat plan Task 3b). Pure."""
+
 import pytest
 
 from streaming.pricing.psychology import PsychologyConfig, apply_charm_ending, present_price

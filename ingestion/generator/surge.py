@@ -3,6 +3,7 @@
 Implements Hatem plan Task 1. Pure logic, unit-tested. The traffic generator divides its inter-event
 sleep by `multiplier(now)` to simulate viral surges.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

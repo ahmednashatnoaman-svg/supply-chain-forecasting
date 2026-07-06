@@ -2,6 +2,7 @@
 
 Pure DataFrame transform (I/O handled by the DAG) so it is unit-testable with chispa.
 """
+
 from __future__ import annotations
 
 from pyspark.sql import DataFrame

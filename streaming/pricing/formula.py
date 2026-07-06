@@ -2,6 +2,7 @@
 
 Implements Nashat plan Task 3. The streaming job calls `dynamic_price` per SKU per window.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

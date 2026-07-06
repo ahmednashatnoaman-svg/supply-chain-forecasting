@@ -3,6 +3,7 @@
 Writes forecast + elasticity + community keys atomically per SKU (pipeline) so the streaming engine
 never reads a half-updated pair. Keys built via contract accessors.
 """
+
 from __future__ import annotations
 
 import json

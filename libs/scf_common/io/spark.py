@@ -1,4 +1,5 @@
 """Spark session builder with the GraphFrames + Kafka + Avro packages preconfigured."""
+
 from __future__ import annotations
 
 from pyspark.sql import SparkSession

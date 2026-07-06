@@ -3,6 +3,7 @@
 Implements Ziad plan Tasks 2 & 3. `build_reorder` is pure (unit-tested); the consumer loop is the
 integration piece. All emails are simulated/free — see docs/reference/cost-and-licensing.md.
 """
+
 from __future__ import annotations
 
 DEFAULT_TARGET_STOCK = 200
@@ -46,7 +47,9 @@ def run_bridge() -> None:  # pragma: no cover - needs Kafka + n8n
     from libs.scf_common.observability import ERRORS_TOTAL, get_logger
 
     log = get_logger("alert_bridge")
-    consumer = AvroKafkaConsumer(Topics.SYSTEM_ALERTS, "system_alerts.avsc", group_id="alert-bridge")
+    consumer = AvroKafkaConsumer(
+        Topics.SYSTEM_ALERTS, "system_alerts.avsc", group_id="alert-bridge"
+    )
     log.info("alert_bridge.started", webhook=settings.automation.n8n_webhook_url)
     try:
         while True:

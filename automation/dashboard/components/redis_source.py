@@ -3,6 +3,7 @@
 Keeps all serving-layer access in one testable place (rendering stays thin). Uses contract accessors
 so a key rename never breaks the dashboard silently.
 """
+
 from __future__ import annotations
 
 import json

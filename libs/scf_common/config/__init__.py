@@ -2,6 +2,7 @@
 
 Uses dataclasses + python-dotenv (zero extra deps) instead of pydantic-settings.
 """
+
 from __future__ import annotations
 
 import os
@@ -19,8 +20,12 @@ def _get(key: str, default: str) -> str:
 
 @dataclass(frozen=True)
 class KafkaSettings:
-    bootstrap_servers: str = field(default_factory=lambda: _get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"))
-    schema_registry_url: str = field(default_factory=lambda: _get("KAFKA_SCHEMA_REGISTRY_URL", "http://localhost:8081"))
+    bootstrap_servers: str = field(
+        default_factory=lambda: _get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    )
+    schema_registry_url: str = field(
+        default_factory=lambda: _get("KAFKA_SCHEMA_REGISTRY_URL", "http://localhost:8081")
+    )
 
 
 @dataclass(frozen=True)
@@ -42,25 +47,41 @@ class RedisSettings:
 @dataclass(frozen=True)
 class SparkSettings:
     master: str = field(default_factory=lambda: _get("SPARK_MASTER", "local[*]"))
-    app_name: str = field(default_factory=lambda: _get("SPARK_APP_NAME", "supply-chain-forecasting"))
+    app_name: str = field(
+        default_factory=lambda: _get("SPARK_APP_NAME", "supply-chain-forecasting")
+    )
     executor_memory: str = field(default_factory=lambda: _get("SPARK_EXECUTOR_MEMORY", "2g"))
     driver_memory: str = field(default_factory=lambda: _get("SPARK_DRIVER_MEMORY", "2g"))
 
 
 @dataclass(frozen=True)
 class PricingSettings:
-    elasticity_coeff: float = field(default_factory=lambda: float(_get("PRICE_ELASTICITY_COEFF", "0.35")))
-    max_uplift_pct: float = field(default_factory=lambda: float(_get("PRICE_MAX_UPLIFT_PCT", "0.25")))
-    min_margin_pct: float = field(default_factory=lambda: float(_get("PRICE_MIN_MARGIN_PCT", "0.10")))
-    surge_threshold: float = field(default_factory=lambda: float(_get("SURGE_VELOCITY_THRESHOLD", "2.0")))
+    elasticity_coeff: float = field(
+        default_factory=lambda: float(_get("PRICE_ELASTICITY_COEFF", "0.35"))
+    )
+    max_uplift_pct: float = field(
+        default_factory=lambda: float(_get("PRICE_MAX_UPLIFT_PCT", "0.25"))
+    )
+    min_margin_pct: float = field(
+        default_factory=lambda: float(_get("PRICE_MIN_MARGIN_PCT", "0.10"))
+    )
+    surge_threshold: float = field(
+        default_factory=lambda: float(_get("SURGE_VELOCITY_THRESHOLD", "2.0"))
+    )
     window_seconds: int = field(default_factory=lambda: int(_get("STREAMING_WINDOW_SECONDS", "60")))
 
 
 @dataclass(frozen=True)
 class AutomationSettings:
-    n8n_webhook_url: str = field(default_factory=lambda: _get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/reorder"))
-    supplier_email: str = field(default_factory=lambda: _get("SUPPLIER_EMAIL", "supplier@example.com"))
-    reorder_threshold: int = field(default_factory=lambda: int(_get("INVENTORY_REORDER_THRESHOLD", "50")))
+    n8n_webhook_url: str = field(
+        default_factory=lambda: _get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/reorder")
+    )
+    supplier_email: str = field(
+        default_factory=lambda: _get("SUPPLIER_EMAIL", "supplier@example.com")
+    )
+    reorder_threshold: int = field(
+        default_factory=lambda: int(_get("INVENTORY_REORDER_THRESHOLD", "50"))
+    )
 
 
 @dataclass(frozen=True)

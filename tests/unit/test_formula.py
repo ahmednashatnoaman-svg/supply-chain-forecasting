@@ -1,15 +1,20 @@
 """Unit tests for the dynamic pricing formula (Nashat plan Task 3). Pure."""
+
 import pytest
 
 from streaming.pricing.formula import PricingConfig, dynamic_price
 
 pytestmark = pytest.mark.unit
 
-CFG = PricingConfig(elasticity_coeff=0.35, max_uplift_pct=0.25, min_margin_pct=0.10, surge_threshold=2.0)
+CFG = PricingConfig(
+    elasticity_coeff=0.35, max_uplift_pct=0.25, min_margin_pct=0.10, surge_threshold=2.0
+)
 
 
 def test_surge_raises_but_capped():
-    p = dynamic_price(base_price=100, velocity=500, baseline=100, elasticity=0.8, is_surge=True, cfg=CFG)
+    p = dynamic_price(
+        base_price=100, velocity=500, baseline=100, elasticity=0.8, is_surge=True, cfg=CFG
+    )
     assert 100 < p <= 125  # uplift capped at +25%
 
 

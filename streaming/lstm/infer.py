@@ -3,6 +3,7 @@
 Implements Nashat plan Task 4 (inference side). If the model artifact is unavailable, `surge_prob`
 returns 0.0 so the streaming pricing loop degrades to velocity-only pricing (never blocks).
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -45,7 +46,9 @@ def build_surge_pandas_udf(broadcast_state_dict):  # pragma: no cover - needs Sp
             model.load_state_dict(broadcast_state_dict.value)
         except Exception:
             model = None  # fallback -> zeros
-        arr = np.stack(seq_col.apply(lambda s: np.asarray(s).reshape(SEQ_LEN, N_FEATURES)).to_list())
+        arr = np.stack(
+            seq_col.apply(lambda s: np.asarray(s).reshape(SEQ_LEN, N_FEATURES)).to_list()
+        )
         return __import__("pandas").Series(predict_batch(model, arr))
 
     return _udf

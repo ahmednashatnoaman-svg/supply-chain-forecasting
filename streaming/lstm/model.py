@@ -3,6 +3,7 @@
 Implements Nashat plan Task 4. Trained locally in PyTorch (zero-cost, no inference API) and logged to
 MLflow. Signature mirrors contracts/models/lstm_signature.json (input [50, 4] -> surge_prob in [0,1]).
 """
+
 from __future__ import annotations
 
 import torch

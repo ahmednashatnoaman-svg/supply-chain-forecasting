@@ -1,4 +1,5 @@
 """Redis client factory. All serving-layer reads/writes go through here."""
+
 from __future__ import annotations
 
 from functools import lru_cache

@@ -1,6 +1,7 @@
 """Typed accessors for the four frozen contracts. EVERY layer imports from here — never hard-code a
 topic name, Redis key, or HDFS path. See `contracts/` and `docs/architecture/data-contracts.md`.
 """
+
 from __future__ import annotations
 
 from libs.scf_common.config import settings

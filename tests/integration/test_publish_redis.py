@@ -1,4 +1,5 @@
 """Integration test: batch publish -> Redis (Emad plan Task 6). Needs a Redis container."""
+
 import pytest
 
 pytest.importorskip("testcontainers")

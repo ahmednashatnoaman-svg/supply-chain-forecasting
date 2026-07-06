@@ -2,6 +2,7 @@
 
 Output schema matches contracts/models/forecast_output.json: (item_id: long, forecast_demand: double).
 """
+
 from __future__ import annotations
 
 from pyspark.ml.feature import VectorAssembler

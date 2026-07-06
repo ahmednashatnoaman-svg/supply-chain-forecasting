@@ -1,4 +1,5 @@
 """Automation log view. Implements Ziad plan Task 5 (page 3)."""
+
 from __future__ import annotations
 
 

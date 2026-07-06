@@ -1,4 +1,5 @@
 """Unit tests for LSTM inference + fallback (Nashat plan Task 4). Skips if torch is absent."""
+
 import pytest
 
 pytest.importorskip("torch")

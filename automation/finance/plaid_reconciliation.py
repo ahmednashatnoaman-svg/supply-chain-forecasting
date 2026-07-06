@@ -11,6 +11,7 @@ Security rules (from the plaid-fintech skill) enforced here:
 
 Install the optional dep with:  pip install "supply-chain-forecasting[finance]"  (adds `plaid-python`).
 """
+
 from __future__ import annotations
 
 import os
@@ -27,7 +28,10 @@ class ReconciliationResult:
 
 def is_enabled() -> bool:
     """True only when explicitly enabled AND pointed at the free sandbox."""
-    return os.getenv("PLAID_ENABLED", "false").lower() == "true" and os.getenv("PLAID_ENV", "sandbox") == "sandbox"
+    return (
+        os.getenv("PLAID_ENABLED", "false").lower() == "true"
+        and os.getenv("PLAID_ENV", "sandbox") == "sandbox"
+    )
 
 
 def verify_funds(access_token: str, account_id: str, amount: float) -> ReconciliationResult:
@@ -47,8 +51,8 @@ def verify_funds(access_token: str, account_id: str, amount: float) -> Reconcili
 
     # Imported lazily so the optional dependency is not required for the core platform.
     from plaid.api import plaid_api  # type: ignore
-    from plaid.configuration import Configuration  # type: ignore
     from plaid.api_client import ApiClient  # type: ignore
+    from plaid.configuration import Configuration  # type: ignore
     from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest  # type: ignore
 
     cfg = Configuration(
@@ -63,4 +67,6 @@ def verify_funds(access_token: str, account_id: str, amount: float) -> Reconcili
         return ReconciliationResult(False, None, amount, "account not found")
     available = account["balances"]["available"] or account["balances"]["current"]
     ok = available >= amount
-    return ReconciliationResult(ok, float(available), amount, "sufficient" if ok else "insufficient funds")
+    return ReconciliationResult(
+        ok, float(available), amount, "sufficient" if ok else "insufficient funds"
+    )

@@ -57,6 +57,15 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+# E501: black owns code line-length; ruff would also flag long docstrings/comments black won't wrap.
+# N812: `from pyspark.sql import functions as F` is the universal PySpark convention.
+ignore = ["E501", "N812"]
+
+[tool.ruff.lint.per-file-ignores]
+# Streamlit REQUIRES numbered page filenames (1_*.py) for sidebar ordering — allow the "invalid" name.
+"automation/dashboard/pages/*" = ["N999"]
+# Tests: allow long descriptive assert lines.
+"tests/*" = ["E501"]
 
 [tool.black]
 line-length = 100

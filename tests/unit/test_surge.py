@@ -1,4 +1,5 @@
 """Unit tests for the surge schedule (Hatem plan Task 1). Pure."""
+
 from datetime import datetime
 
 import pytest
