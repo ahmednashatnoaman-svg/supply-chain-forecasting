@@ -7,6 +7,7 @@ returns 0.0 so the streaming pricing loop degrades to velocity-only pricing (nev
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import torch
 
 from streaming.lstm.model import N_FEATURES, SEQ_LEN, SurgeLSTM
@@ -30,25 +31,33 @@ def predict_batch(model: SurgeLSTM | None, sequences: np.ndarray) -> np.ndarray:
         return model(x).cpu().numpy().astype(np.float32)
 
 
-def build_surge_pandas_udf(broadcast_state_dict):  # pragma: no cover - needs Spark
-    """Build a Spark pandas_udf that scores each row's sequence column.
+def build_surge_pandas_udf(broadcast_state_dict):
+    """Build a Spark pandas_udf that scores each row's flattened sequence column.
 
-    TODO(nashat-plan Task 5): wire into `pricing_stream`. `broadcast_state_dict` is a
-    `spark.sparkContext.broadcast(model.state_dict())` so workers rebuild the model locally.
+    Args:
+        broadcast_state_dict: a `spark.sparkContext.broadcast(model.state_dict())` (or a broadcast of
+            `None` when no trained model is available yet) so each worker rebuilds the model locally
+            without re-shipping weights per batch.
+
+    Returns:
+        A `pandas_udf(FloatType())` mapping a column of length-`SEQ_LEN*N_FEATURES` arrays to a
+        per-row surge probability in `[0, 1]`. Falls back to `0.0` if the broadcast state dict is
+        missing or invalid (mirrors `predict_batch`'s fallback) — the stream never blocks on a
+        missing model, it just degrades to velocity-only pricing.
     """
     from pyspark.sql.functions import pandas_udf
     from pyspark.sql.types import FloatType
 
     @pandas_udf(FloatType())
-    def _udf(seq_col):
-        model = SurgeLSTM()
+    def _udf(seq_col: pd.Series) -> pd.Series:
+        model: SurgeLSTM | None = SurgeLSTM()
         try:
             model.load_state_dict(broadcast_state_dict.value)
         except Exception:
-            model = None  # fallback -> zeros
+            model = None  # missing/invalid weights -> fallback to zeros
         arr = np.stack(
             seq_col.apply(lambda s: np.asarray(s).reshape(SEQ_LEN, N_FEATURES)).to_list()
         )
-        return __import__("pandas").Series(predict_batch(model, arr))
+        return pd.Series(predict_batch(model, arr))
 
     return _udf
