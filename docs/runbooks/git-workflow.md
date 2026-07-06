@@ -31,9 +31,10 @@ ahmednashatnoaman-svg/streaming-task-5-pricing-stream
 ## Branch protection on `main` (configured)
 
 - No direct pushes — every change goes through a PR.
-- Required status checks: `lint-type`, `unit`, `no-paid-deps`, `integration`.
-- **At least 1 approving review** required before merge (from any collaborator with write access —
-  not restricted to CODEOWNERS, so a busy reviewer never fully blocks the team).
+- Required status checks: `lint-type`, `unit`, `no-paid-deps`, `integration` — all 4 must be green.
+- **No mandatory human approval.** A PR can merge as soon as CI is green — reviews are welcome
+  (CODEOWNERS still shows suggested reviewers) but never block a merge, so nobody is stuck waiting on
+  a teammate's availability.
 - Linear history enforced (squash-merge only — see repo settings below).
 - Force-pushes and branch deletion blocked on `main`.
 
