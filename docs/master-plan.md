@@ -119,6 +119,23 @@ idle. Hatem's topic schema (M0) blocks both Nashat and Emad's stream reads — h
 | [nashat-plan.md](plans/nashat-plan.md) | Nashat | M3 — speed engine + contracts/CI |
 | [ziad-plan.md](plans/ziad-plan.md) | Ziad | M4 — serving & automation |
 
+## 7a. Financial & pricing-strategy workstream
+
+The pricing engine is the system's commercial core, so it gets an explicit financial workstream layered
+on the speed/serving layers (built with the pricing-strategy, price-psychology, and financial-modeling
+disciplines). All zero-cost.
+
+| Piece | File / doc | Owner | Consulted |
+|---|---|---|---|
+| Value-based pricing math + guardrails | `streaming/pricing/formula.py` | Nashat | Emad (elasticity) |
+| Honest price presentation (charm + anchoring) | `streaming/pricing/psychology.py` | Nashat | Ziad |
+| Pricing strategy doc | [`docs/reference/pricing-strategy.md`](reference/pricing-strategy.md) | Nashat | Ziad |
+| Financial model / ROI business case | [`docs/reference/financial-model.md`](reference/financial-model.md) | Ziad | Nashat |
+| Optional supplier-payment reconciliation (Plaid Sandbox, free) | `automation/finance/plaid_reconciliation.py` | Ziad | — |
+
+**Ethics rule (non-negotiable):** presentation never charges more than the computed price and never
+fabricates a "was" anchor or countdown. See pricing-strategy doc §5.
+
 ## 8. Risks (see spec §8) — orchestration-level mitigations
 
 - **Idle-waiting:** M0 stubs + seed scripts unblock every downstream member before upstream is real.

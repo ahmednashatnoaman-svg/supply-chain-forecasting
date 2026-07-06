@@ -88,6 +88,22 @@ def test_no_surge_returns_base():
 - [ ] **Step 4: Run, expect PASS.**
 - [ ] **Step 5: Commit** — `feat(pricing): guard-railed dynamic price formula`.
 
+### Task 3b: Honest price presentation psychology
+
+**Files:** Create `streaming/pricing/psychology.py`; Test `tests/unit/test_psychology.py`
+**Interfaces:** Produces `apply_charm_ending(price, ending) -> float` and
+`present_price(new_price, base_price, cfg) -> PricePresentation(display_price, anchor_price, pct_change,
+note)`. The stream applies this to the computed price before emitting `automated_pricing_updates`.
+
+- [ ] **Step 1: Failing test** — assert `apply_charm_ending(121.00) == 120.99`, charm price never exceeds
+  input, and `present_price(100.0, 100.0, cfg).anchor_price is None` (no fake anchor when unchanged).
+- [ ] **Step 2: Run, expect FAIL.**
+- [ ] **Step 3: Implement** charm rounding (down/equal only) + honest anchoring + quality-signal floor.
+- [ ] **Step 4: Run, expect PASS.**
+- [ ] **Step 5: Commit** — `feat(pricing): honest charm/anchor price presentation`.
+
+See [pricing-strategy](../reference/pricing-strategy.md) for the ethics rules this enforces.
+
 ### Task 4: LSTM model + inference UDF
 
 **Files:** Create `streaming/lstm/model.py`, `streaming/lstm/infer.py`; Test `tests/unit/test_lstm_infer.py`

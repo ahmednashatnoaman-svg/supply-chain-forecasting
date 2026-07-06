@@ -48,6 +48,10 @@ contracts that let all five layers integrate.
 
 Full plans: [master plan](docs/master-plan.md) · per-member plans in [`docs/plans/`](docs/plans/).
 
+**Financial & pricing strategy:** [pricing-strategy](docs/reference/pricing-strategy.md) (value-based +
+honest psychology) · [financial-model](docs/reference/financial-model.md) (ROI business case) ·
+[cost-and-licensing](docs/reference/cost-and-licensing.md) (zero-cost guarantee).
+
 ## Quick start
 
 ```bash
