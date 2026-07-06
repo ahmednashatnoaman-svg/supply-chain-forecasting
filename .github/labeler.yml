@@ -1,0 +1,29 @@
+# Config for actions/labeler — auto-applies layer labels based on changed paths.
+# Mirrors .github/CODEOWNERS ownership boundaries.
+"layer:infra":
+  - changed-files:
+    - any-glob-to-any-file: ["infra/**"]
+
+"layer:ingestion":
+  - changed-files:
+    - any-glob-to-any-file: ["ingestion/**"]
+
+"layer:batch":
+  - changed-files:
+    - any-glob-to-any-file: ["batch/**"]
+
+"layer:streaming":
+  - changed-files:
+    - any-glob-to-any-file: ["streaming/**"]
+
+"layer:automation":
+  - changed-files:
+    - any-glob-to-any-file: ["automation/**"]
+
+"plan-task":
+  - changed-files:
+    - any-glob-to-any-file: ["docs/plans/**"]
+
+"shared-contract":
+  - changed-files:
+    - any-glob-to-any-file: ["contracts/**", "libs/**", "pyproject.toml", "infra/docker/docker-compose.yml"]
