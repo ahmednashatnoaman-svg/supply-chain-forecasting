@@ -4,7 +4,7 @@
   "namespace": "com.scf.contracts",
   "doc": "A single clickstream event replayed from Retailrocket by the ingestion layer.",
   "fields": [
-    { "name": "event_time", "type": "long", "logicalType": "timestamp-millis",
+    { "name": "event_time", "type": { "type": "long", "logicalType": "timestamp-millis" },
       "doc": "Event timestamp (epoch millis)." },
     { "name": "visitor_id", "type": "long", "doc": "Anonymous visitor id." },
     { "name": "event", "type": { "type": "enum", "name": "EventType",

@@ -4,7 +4,7 @@
   "namespace": "com.scf.contracts",
   "doc": "Final dynamic price decision emitted by the speed layer.",
   "fields": [
-    { "name": "event_time", "type": "long", "logicalType": "timestamp-millis" },
+    { "name": "event_time", "type": { "type": "long", "logicalType": "timestamp-millis" } },
     { "name": "item_id", "type": "long", "doc": "Product SKU. Partition key." },
     { "name": "base_price", "type": "double" },
     { "name": "new_price", "type": "double" },

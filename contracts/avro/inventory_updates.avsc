@@ -4,7 +4,7 @@
   "namespace": "com.scf.contracts",
   "doc": "Stock level change for a SKU.",
   "fields": [
-    { "name": "event_time", "type": "long", "logicalType": "timestamp-millis" },
+    { "name": "event_time", "type": { "type": "long", "logicalType": "timestamp-millis" } },
     { "name": "item_id", "type": "long", "doc": "Product SKU. Partition key." },
     { "name": "stock_level", "type": "int", "doc": "Units on hand after this update." },
     { "name": "warehouse", "type": ["null", "string"], "default": null }
