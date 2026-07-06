@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supply-chain-forecasting"
+version = "0.1.0"
+description = "Production-grade demand forecasting & dynamic pricing on Spark, Kafka, Hadoop"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Supply Chain Forecasting Team" }]
+
+dependencies = [
+    "pyspark==3.5.1",
+    "graphframes==0.6",
+    "confluent-kafka==2.5.0",
+    "fastavro==1.9.4",
+    "redis==5.0.7",
+    "torch==2.3.1",
+    "numpy==1.26.4",
+    "pandas==2.2.2",
+    "mlflow==2.14.1",
+    "great-expectations==0.18.19",
+    "apache-airflow==2.9.2",
+    "streamlit==1.36.0",
+    "plotly==5.22.0",
+    "python-dotenv==1.0.1",
+    "pydantic==2.8.2",
+    "prometheus-client==0.20.0",
+    "structlog==24.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.2.2",
+    "pytest-cov==5.0.0",
+    "chispa==0.10.1",
+    "testcontainers==4.7.1",
+    "ruff==0.5.1",
+    "black==24.4.2",
+    "mypy==1.10.1",
+    "pre-commit==3.7.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["libs*", "batch*", "streaming*", "ingestion*", "automation*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast isolated tests",
+    "integration: needs Kafka/Redis/Spark via testcontainers",
+    "e2e: full walking-skeleton path",
+    "data_quality: Great Expectations suites",
+]
