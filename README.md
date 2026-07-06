@@ -52,6 +52,9 @@ Full plans: [master plan](docs/master-plan.md) · per-member plans in [`docs/pla
 honest psychology) · [financial-model](docs/reference/financial-model.md) (ROI business case) ·
 [cost-and-licensing](docs/reference/cost-and-licensing.md) (zero-cost guarantee).
 
+**Technical playbooks:** [kafka-playbook](docs/reference/kafka-playbook.md) ·
+[spark-playbook](docs/reference/spark-playbook.md) · [mlops-playbook](docs/reference/mlops-playbook.md).
+
 ## Quick start
 
 **Dataset:** [Retailrocket Recommender System Dataset (Kaggle, free)](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset)
