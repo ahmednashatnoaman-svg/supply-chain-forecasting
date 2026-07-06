@@ -54,6 +54,11 @@ honest psychology) · [financial-model](docs/reference/financial-model.md) (ROI 
 
 ## Quick start
 
+**Dataset:** [Retailrocket Recommender System Dataset (Kaggle, free)](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset)
+— chosen over Instacart because `item_properties.csv` carries the price/time-series signal dynamic
+pricing needs. See [ADR-0004](docs/architecture/adr/0004-dataset-choice.md) for the full rationale.
+Needs a free Kaggle account + API token (`~/.kaggle/kaggle.json`) — `make data` uses it automatically.
+
 ```bash
 cp .env.example .env          # fill in local values
 make setup                    # create venv, install deps, pre-commit hooks

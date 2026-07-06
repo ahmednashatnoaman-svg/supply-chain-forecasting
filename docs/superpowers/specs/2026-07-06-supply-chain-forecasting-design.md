@@ -78,6 +78,7 @@ Full inventory & licenses: `docs/reference/cost-and-licensing.md`.
 | Batch orchestration | **Airflow** | Production-grade scheduling/retries/backfill for the nightly DAG. |
 | Serving store | **Redis** | Microsecond reads for the streaming pricing loop. |
 | Dev environment | **Docker Compose** mirrors prod; Helm/Terraform for cloud | Reproducible locally, liftable to EMR/Dataproc/K8s. |
+| Dataset | **[Retailrocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset)** (not Instacart) | `item_properties.csv` has the price/time-series signal dynamic pricing needs; `events.csv` is clickstream-shaped for streaming replay. See [ADR-0004](../../architecture/adr/0004-dataset-choice.md). |
 
 ## 5. Orchestration approach
 
