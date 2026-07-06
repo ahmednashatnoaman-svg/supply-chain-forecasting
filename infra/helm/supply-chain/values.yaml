@@ -1,0 +1,22 @@
+# Defaults sized for the smallest/free footprint. Bump replicas only on a real (self-managed) cluster.
+global:
+  imagePullPolicy: IfNotPresent
+
+redis:
+  image: redis:7-alpine
+  replicas: 1
+  port: 6379
+
+kafka:
+  image: confluentinc/cp-kafka:7.6.1
+  replicas: 1
+  port: 9092
+
+sparkWorker:
+  image: apache/spark:3.5.1
+  replicas: 2
+  cores: 2
+  memory: 2G
+
+# NOTE: this chart is provided for portability. Deploying it to a *paid* managed cluster would incur
+# cost and violates the project's zero-cost rule. Use a free local cluster (kind/minikube) if you must.

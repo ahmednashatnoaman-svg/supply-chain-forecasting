@@ -1,0 +1,27 @@
+{
+  "title": "Supply Chain — Platform Overview",
+  "uid": "scf-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Records processed (rate)",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum(rate(scf_records_processed_total[5m])) by (component)" }]
+    },
+    {
+      "type": "stat",
+      "title": "Errors (rate)",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "targets": [{ "expr": "sum(rate(scf_errors_total[5m])) by (component)" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Processing latency (p95)",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(scf_latency_seconds_bucket[5m])) by (le, component))" }]
+    }
+  ]
+}

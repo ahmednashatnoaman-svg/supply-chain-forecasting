@@ -1,0 +1,6 @@
+apiVersion: v2
+name: supply-chain
+description: Cloud-ready Helm chart mirroring the local Docker stack (Nagy, plan Task 4). Manifests only.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

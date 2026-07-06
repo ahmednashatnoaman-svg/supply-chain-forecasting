@@ -1,0 +1,28 @@
+# Prometheus scrape config (Nagy, plan Task 3). Scrapes exporters + each Python layer's /metrics.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+
+  # Python layers expose /metrics via libs.scf_common.observability.serve_metrics(port).
+  - job_name: streaming
+    static_configs:
+      - targets: ["host.docker.internal:8000"]  # streaming pricing engine
+  - job_name: batch
+    static_configs:
+      - targets: ["host.docker.internal:8001"]
+  - job_name: ingestion
+    static_configs:
+      - targets: ["host.docker.internal:8002"]
