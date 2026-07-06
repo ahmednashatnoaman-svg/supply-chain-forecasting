@@ -1,0 +1,15 @@
+name: ci-zero-cost-guard
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-paid-deps:
+    runs-on: ubuntu-latest   # free for public repos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Enforce zero-cost dependency policy
+        run: python scripts/check_no_paid_deps.py

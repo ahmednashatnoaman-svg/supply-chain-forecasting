@@ -1,0 +1,20 @@
+# Ownership map (replace placeholder handles with real GitHub usernames).
+# Enforces the layer boundaries from docs/master-plan.md at review time.
+
+# Shared contracts + libs + CI: tech lead (Nashat) + adjacent-owner review
+/contracts/            # @nashat @emad @hatem
+/libs/                 # @nashat
+/.github/              # @nashat @nagy
+
+# Layer ownership
+/infra/                # @nagy
+/ingestion/            # @hatem
+/batch/                # @emad
+/streaming/            # @nashat
+/automation/           # @ziad
+
+# Financial workstream
+/streaming/pricing/    # @nashat
+/automation/finance/   # @ziad
+/docs/reference/pricing-strategy.md   # @nashat
+/docs/reference/financial-model.md    # @ziad
