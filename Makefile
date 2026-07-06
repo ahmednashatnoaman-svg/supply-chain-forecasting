@@ -3,6 +3,9 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 COMPOSE := docker compose -f infra/docker/docker-compose.yml
+# Set PROFILE=core for a lighter footprint (Kafka+Redis+Spark+HDFS only, no monitoring).
+# Defaults to `full` (all services including Prometheus, Grafana, MLflow, n8n).
+PROFILE ?= full
 
 .PHONY: help setup data up down restart logs ps smoke test test-unit test-integration \
         test-e2e lint fmt type dq batch stream ingest dashboard clean
@@ -18,11 +21,11 @@ setup: ## Create venv, install deps + pre-commit hooks
 data: ## Download & stage the Retailrocket sample into HDFS
 	bash scripts/download_data.sh && bash scripts/hdfs_load.sh
 
-up: ## Start the full stack (Kafka, HDFS, Spark, Redis, monitoring)
-	$(COMPOSE) up -d && bash scripts/bootstrap.sh
+up: ## Start the stack (PROFILE=core|full, default=full)
+	$(COMPOSE) --profile $(PROFILE) up -d && bash scripts/bootstrap.sh
 
 down: ## Stop the stack
-	$(COMPOSE) down
+	$(COMPOSE) --profile $(PROFILE) down
 
 restart: down up ## Restart the stack
 
