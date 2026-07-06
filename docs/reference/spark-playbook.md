@@ -49,7 +49,7 @@ join the small side (e.g., `graph_df` aggregated per SKU) with `F.broadcast()` r
   latency, increase `spark.sql.execution.arrow.maxRecordsPerBatch` to amortize the reconstruction cost
   over more rows per call.
 
-## 5. Debugging checklist (Spark UI at `localhost:8080` / driver logs)
+## 5. Debugging checklist (Spark UI at `localhost:8088` / driver logs)
 
 1. `df.explain(mode="cost")` before assuming a join is the bottleneck — verify what plan Spark actually
    chose (broadcast vs sort-merge).
