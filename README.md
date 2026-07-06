@@ -48,6 +48,10 @@ contracts that let all five layers integrate.
 
 Full plans: [master plan](docs/master-plan.md) · per-member plans in [`docs/plans/`](docs/plans/).
 
+**New to the repo?** Open this repo in Claude Code and ask it to "onboard me" (or run `/scf-onboard
+<your-name>`) — it reads `.claude/skills/scf-onboard/SKILL.md` and gives you your layer, your next
+open task, and the git/PR conventions in under a minute.
+
 **Financial & pricing strategy:** [pricing-strategy](docs/reference/pricing-strategy.md) (value-based +
 honest psychology) · [financial-model](docs/reference/financial-model.md) (ROI business case) ·
 [cost-and-licensing](docs/reference/cost-and-licensing.md) (zero-cost guarantee).
