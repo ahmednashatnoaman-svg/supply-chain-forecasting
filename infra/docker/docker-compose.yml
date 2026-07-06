@@ -12,6 +12,7 @@ volumes:
   hdfs-name:
   hdfs-data:
   grafana-data:
+  airflow-db:
 
 services:
   # ---------------- Kafka + Schema Registry ----------------
@@ -126,6 +127,69 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # ---------------- Airflow (nightly batch orchestration, Emad) ----------------
+  # Version pinned to match `apache-airflow==2.9.2` in pyproject.toml (2.x architecture:
+  # webserver + scheduler, not the 3.x apiserver/dag-processor split).
+  airflow-postgres:
+    image: postgres:16-alpine
+    profiles: [full]
+    networks: [scf-net]
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes: ["airflow-db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  airflow-init:
+    image: apache/airflow:2.9.2
+    profiles: [full]
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    networks: [scf-net]
+    environment: &airflow-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+    volumes: ["../../batch/airflow_dags:/opt/airflow/dags"]
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create --username admin --firstname Admin --lastname User \
+          --role Admin --email admin@example.com --password admin || true
+
+  airflow-webserver:
+    image: apache/airflow:2.9.2
+    profiles: [full]
+    depends_on: [airflow-init]
+    networks: [scf-net]
+    ports: ["8082:8080"]   # 8080 already used by spark-master's UI
+    environment: *airflow-env
+    volumes: ["../../batch/airflow_dags:/opt/airflow/dags"]
+    command: ["webserver"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.2
+    profiles: [full]
+    depends_on: [airflow-init]
+    networks: [scf-net]
+    environment: *airflow-env
+    volumes: ["../../batch/airflow_dags:/opt/airflow/dags"]
+    command: ["scheduler"]
 
   # ---------------- MLflow (model registry) ----------------
   mlflow:

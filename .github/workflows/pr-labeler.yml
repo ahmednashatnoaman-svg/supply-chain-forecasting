@@ -1,0 +1,22 @@
+# SECURITY NOTE: pull_request_target is required here (write token to apply labels, even on
+# fork PRs) but is safe in this workflow specifically because there is NO actions/checkout step
+# and NO `run:` step interpolating any ${{ github.event.* }} value — actions/labeler only reads
+# the PR's changed-file list via the API. Do not add a checkout or run step to this job without
+# re-reviewing for injection/secret-exfiltration risk (see github.blog docs on workflow injections).
+name: pr-labeler
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest   # free for public repos
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          configuration-path: .github/labeler.yml
+          sync-labels: true
