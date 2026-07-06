@@ -1,0 +1,50 @@
+"""Publish gold tables to the Redis serving layer. Implements Emad plan Task 6.
+
+Writes forecast + elasticity + community keys atomically per SKU (pipeline) so the streaming engine
+never reads a half-updated pair. Keys built via contract accessors.
+"""
+from __future__ import annotations
+
+import json
+
+from pyspark.sql import DataFrame
+
+from libs.scf_common.contracts import RedisKeys
+from libs.scf_common.io import get_redis
+from libs.scf_common.observability import RECORDS_PROCESSED, get_logger
+
+log = get_logger("batch.publish")
+
+
+def publish_forecasts(forecast_df: DataFrame, graph_df: DataFrame) -> int:
+    """Publish forecasts + elasticity to Redis; return number of SKUs written.
+
+    Args:
+        forecast_df: [item_id, forecast_demand].
+        graph_df: [item_id, related_item_id, elasticity_weight, community].
+    """
+    r = get_redis()
+    # Collect elasticity into per-SKU JSON lists (small after aggregation).
+    elasticity_map: dict[int, list[dict]] = {}
+    community_map: dict[int, int] = {}
+    for row in graph_df.collect():
+        elasticity_map.setdefault(row["item_id"], []).append(
+            {"related": row["related_item_id"], "weight": float(row["elasticity_weight"])}
+        )
+        if "community" in row and row["community"] is not None:
+            community_map[row["item_id"]] = int(row["community"])
+
+    count = 0
+    for row in forecast_df.collect():
+        sku = row["item_id"]
+        pipe = r.pipeline()
+        pipe.set(RedisKeys.forecast(sku), float(row["forecast_demand"]))
+        if sku in elasticity_map:
+            pipe.set(RedisKeys.elasticity(sku), json.dumps(elasticity_map[sku]))
+        if sku in community_map:
+            pipe.set(RedisKeys.community(sku), community_map[sku])
+        pipe.execute()  # atomic per SKU
+        count += 1
+    RECORDS_PROCESSED.labels(component="batch.publish").inc(count)
+    log.info("batch.publish.done", skus=count)
+    return count
