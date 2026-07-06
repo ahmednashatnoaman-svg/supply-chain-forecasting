@@ -54,6 +54,20 @@ requires a PR reviewed by the two adjacent owners.
 - **Model signatures:** MLlib forecast output schema + LSTM tensor spec — in `contracts/models/`,
   versioned in MLflow.
 
+## 3a. Zero-cost / free & open-source constraint (hard requirement)
+
+The entire system MUST run at **zero cost** using only free & open-source software:
+
+- All engines are self-hosted OSS in Docker (Spark, Hadoop, Kafka, ZK, Redis, MLflow, Airflow, n8n,
+  Prometheus, Grafana, Schema Registry via Apicurio/Confluent community).
+- **No paid model/inference APIs.** The LSTM surge classifier is trained and served locally in PyTorch.
+- **No billed cloud.** Helm/Terraform are manifests-only, never applied to a paid provider.
+- **Free CI:** GitHub Actions gives public repos unlimited free minutes — hence the repo is public.
+- **Free data:** Retailrocket dataset from Kaggle (free account/API token).
+- **Simulated supplier email** (log/console) or a free SMTP tier (e.g. Gmail free) for n8n.
+
+Full inventory & licenses: `docs/reference/cost-and-licensing.md`.
+
 ## 4. Decisions & rationale
 
 | Decision | Choice | Why |
