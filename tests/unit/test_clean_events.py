@@ -6,8 +6,27 @@ pytestmark = pytest.mark.unit
 
 
 def test_drops_dupes_and_casts(spark):
+    from pyspark.sql.types import (
+        DoubleType,
+        LongType,
+        StringType,
+        StructField,
+        StructType,
+    )
+
     from batch.etl.clean_events import clean_events
 
+    # Explicit schema: the `price` column is all-null here, so type must be declared (Spark can't
+    # infer an all-None column). This mirrors how the real ETL reads typed Parquet.
+    schema = StructType(
+        [
+            StructField("event_time", LongType()),
+            StructField("visitor_id", LongType()),
+            StructField("event", StringType()),
+            StructField("item_id", LongType()),
+            StructField("price", DoubleType()),
+        ]
+    )
     raw = spark.createDataFrame(
         [
             (1609459200000, 1, "view", 10, None),
@@ -15,7 +34,7 @@ def test_drops_dupes_and_casts(spark):
             (1609459200000, 2, "bogus", 11, None),  # filtered (bad event)
             (1609459200000, 3, "transaction", 0, None),  # filtered (item_id <= 0)
         ],
-        ["event_time", "visitor_id", "event", "item_id", "price"],
+        schema,
     )
     out = clean_events(raw)
     assert out.count() == 1
