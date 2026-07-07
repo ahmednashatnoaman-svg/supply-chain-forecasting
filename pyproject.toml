@@ -20,14 +20,18 @@ dependencies = [
     "torch==2.3.1",
     "numpy==1.26.4",
     "pandas==2.2.2",
-    "mlflow==2.14.1",
+    "mlflow==2.16.2",
     "great-expectations==0.18.19",
     "apache-airflow==2.9.2",
-    "streamlit==1.36.0",
+    "streamlit==1.37.1",
     "plotly==5.22.0",
     "python-dotenv==1.0.1",
     "pydantic==2.8.2",
     "prometheus-client==0.20.0",
+    # Explicit protobuf pin: resolves the mlflow/streamlit/opentelemetry-proto triangle.
+    # mlflow>=2.16 and streamlit>=1.37 both accept protobuf>=5; airflow's opentelemetry-proto
+    # requires >=5. Capped at <6 until streamlit explicitly tests 6.x.
+    "protobuf>=5.27,<6",
     "structlog==24.2.0",
 ]
 
