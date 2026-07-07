@@ -60,6 +60,10 @@ class AvroKafkaProducer:
             key=str(record[self.key_field]),
             value=self._serializer(record, ctx),
         )
+        # Serve delivery-report callbacks so the internal message buffer is reaped. Without
+        # poll(0), queue.buffering.max.messages fills and the next produce() blocks forever
+        # under sustained load (the trailing flush() only polls after the loop already hung).
+        self._producer.poll(0)
 
     def flush(self, timeout: float = 10.0) -> None:
         self._producer.flush(timeout)

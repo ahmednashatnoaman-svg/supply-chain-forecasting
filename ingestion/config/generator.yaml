@@ -1,11 +1,10 @@
-# Traffic generator configuration (Hatem). Loaded by traffic_generator.run().
+# Traffic generator configuration (Hatem). Loaded by traffic_generator.run_from_config().
 # Single source of producer config (decision D-E): speed, surges, dataset path, split paths.
 dataset:
-  # Pre-split CSVs produced by `python -m ingestion.generator.split`.
-  # The producer replays the TEST (live) split; the TRAIN split is staged to HDFS bronze.
-  events_csv: data/raw/events_test.csv
-  train_csv: data/raw/events_train.csv
-  test_csv: data/raw/events_test.csv
+  # Pre-split CSVs produced by `python -m ingestion.generator.split` (after download_data.sh).
+  events_csv: data/raw/events.csv        # raw full source for the split CLI
+  train_csv: data/raw/events_train.csv   # 80% train split -> HDFS bronze (Emad's batch brain)
+  test_csv: data/raw/events_test.csv     # 20% test split -> Kafka live stream (producer reads this)
   # Fraction of the dataset reserved for the live stream (rest is history for HDFS/batch).
   live_fraction: 0.2
 

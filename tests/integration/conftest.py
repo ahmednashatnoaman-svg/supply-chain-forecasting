@@ -15,7 +15,6 @@ is materialized -- the producing/consuming code reads ``settings`` lazily, so we
 
 from __future__ import annotations
 
-import os
 import time
 import urllib.error
 import urllib.request
@@ -113,3 +112,25 @@ def live_topic(kafka_env, kafka_bootstrap: str):
     for _, future in fs.items():
         future.result(timeout=30)
     yield "live_web_traffic"
+
+
+@pytest.fixture()
+def make_row():
+    """Shared builder for a string-typed Retailrocket CSV row that exercises the producer's
+    ``to_avro_record`` contract. Used by both the producer round-trip and verifier tests so a
+    contract change is applied in one place.
+
+    Timestamps are ascending and close together (negligible inter-event sleep at speed=100 so
+    records stream fast); itemid cycles through 6 values to spread across the 6 partitions.
+    """
+
+    def _row(i: int) -> dict:
+        return {
+            "timestamp": str(1442300000000 + i),
+            "visitorid": str(100 + (i % 5)),
+            "event": "view" if i % 2 == 0 else "transaction",
+            "itemid": str(10 + (i % 6)),
+            "price": "9.99" if i % 2 else "",
+        }
+
+    return _row

@@ -1,9 +1,9 @@
 """Integration test: HDFS bronze staging (Hatem plan Task 5, exec Task 5).
 
-Brings up the dev stack's ``namenode`` + ``datanode`` (reusing ``infra/docker/docker-compose.yml``
-for parity with the real runbook, per the plan), writes hermetic 5-row synthetic fixtures into
-``data/raw/``, runs ``scripts/hdfs_load.sh``, and asserts the bronze paths exist and that
-``/data/bronze/events`` holds only the TRAIN split rows.
+Runs ``scripts/hdfs_load.sh`` against an **isolated** compose project (``scf-it``) with its own
+volumes, writing hermetic 5-row synthetic fixtures into a throwaway ``DATA_DIR`` so a developer's
+real ``data/raw/`` is never touched and the dev HDFS bronze is never clobbered. Asserts the bronze
+paths exist and that ``/data/bronze/events`` holds the TRAIN split file.
 
 Skips entirely if the ``docker`` CLI is unavailable. Marked ``@pytest.mark.integration`` so it is
 deselectable in the fast CI lane (R-2: HDFS on Windows needs Docker Desktop WSL2).
@@ -11,6 +11,7 @@ deselectable in the fast CI lane (R-2: HDFS on Windows needs Docker Desktop WSL2
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -20,8 +21,17 @@ import pytest
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
-COMPOSE = ["docker", "compose", "-f", str(ROOT / "infra" / "docker" / "docker-compose.yml")]
-DATA_RAW = ROOT / "data" / "raw"
+# Isolated compose project so the test never touches the running dev stack (`scf` project) or its
+# bronze data. Project-prefixed volumes give the test a fresh, throwaway HDFS.
+_PROJECT = "scf-it"
+COMPOSE = [
+    "docker",
+    "compose",
+    "-p",
+    _PROJECT,
+    "-f",
+    str(ROOT / "infra" / "docker" / "docker-compose.yml"),
+]
 
 # Hermetic synthetic fixtures (5 rows each). events_train.csv is the 80% split output.
 _EVENTS_TRAIN = (
@@ -48,7 +58,10 @@ def hdfs_stack():
     # Wait for the namenode to come out of safe mode (be generous on Windows).
     _wait_hdfs_ready(timeout=120)
     yield
-    subprocess.run(COMPOSE + ["rm", "-fs", "namenode", "datanode"], check=False, cwd=str(ROOT))
+    # Only the test's own scf-it containers are removed -- the dev stack is untouched.
+    subprocess.run(
+        COMPOSE + ["rm", "-fs", "namenode", "datanode"], check=False, cwd=str(ROOT)
+    )
 
 
 def _wait_hdfs_ready(timeout: float) -> None:
@@ -69,35 +82,16 @@ def _wait_hdfs_ready(timeout: float) -> None:
 
 
 @pytest.fixture()
-def synthetic_fixtures(hdfs_stack):
-    """Write tiny fixtures into data/raw/, backing up any pre-existing real files first.
+def synthetic_data_dir(hdfs_stack, tmp_path: Path) -> Path:
+    """Write tiny fixtures into a throwaway temp dir; point hdfs_load.sh at it via DATA_DIR.
 
-    CI starts with an empty data/raw/; this save/restore keeps a developer's real downloaded data
-    intact if they run the test locally.
+    Real ``data/raw/`` is never touched, so there is no save/restore and no risk of destroying a
+    developer's downloaded dataset. The temp dir is cleaned up automatically by pytest.
     """
-    DATA_RAW.mkdir(parents=True, exist_ok=True)
-    fixtures = {
-        "events_train.csv": _EVENTS_TRAIN,
-        "item_properties_part1.csv": _ITEM_PROPS,
-        "category_tree.csv": _CATEGORY_TREE,
-    }
-    backed_up: dict[str, Path | None] = {}
-    for name, content in fixtures.items():
-        target = DATA_RAW / name
-        if target.exists():
-            backup = DATA_RAW / f".{name}.bak"
-            target.replace(backup)
-            backed_up[name] = backup
-        else:
-            backed_up[name] = None
-        target.write_text(content)
-    yield fixtures
-    # restore / clean up
-    for name in fixtures:
-        (DATA_RAW / name).unlink(missing_ok=True)
-        backup = backed_up.get(name)
-        if backup is not None:
-            backup.replace(DATA_RAW / name)
+    (tmp_path / "events_train.csv").write_text(_EVENTS_TRAIN)
+    (tmp_path / "item_properties_part1.csv").write_text(_ITEM_PROPS)
+    (tmp_path / "category_tree.csv").write_text(_CATEGORY_TREE)
+    return tmp_path
 
 
 def _hdfs_test(path: str) -> bool:
@@ -119,8 +113,19 @@ def _hdfs_count(path: str) -> int:
     return r.returncode == 0 and r.stdout.count("\n") >= 1
 
 
-def test_hdfs_bronze_stages_train_split_and_dims(synthetic_fixtures):
-    r = subprocess.run(["bash", str(ROOT / "scripts" / "hdfs_load.sh")], cwd=str(ROOT))
+def test_hdfs_bronze_stages_train_split_and_dims(synthetic_data_dir: Path):
+    # DATA_DIR points the script at the temp fixture dir; COMPOSE_PROJECT_NAME makes the script's
+    # own `docker compose` calls (the compose file sets `name: scf`) target the isolated scf-it
+    # project so the dev stack's bronze data is never touched.
+    r = subprocess.run(
+        ["bash", str(ROOT / "scripts" / "hdfs_load.sh")],
+        cwd=str(ROOT),
+        env={
+            **os.environ,
+            "DATA_DIR": str(synthetic_data_dir),
+            "COMPOSE_PROJECT_NAME": _PROJECT,
+        },
+    )
     assert r.returncode == 0, "hdfs_load.sh failed"
 
     assert _hdfs_test("/data/bronze/events"), "events bronze missing"

@@ -141,7 +141,8 @@ def run_from_config(
     cfg = load_config(config_path)
     speed = speed_override if speed_override is not None else int(cfg["playback"]["speed"])
     surge = build_surge(cfg)
-    csv_path = cfg["dataset"]["events_csv"]
+    # Replay the 20% TEST split (the live-stream tail); the 80% train split goes to HDFS bronze.
+    csv_path = cfg["dataset"]["test_csv"]
     rows = _read_csv_rows(csv_path)
     return run(rows=rows, speed=speed, limit=limit, surge=surge)
 

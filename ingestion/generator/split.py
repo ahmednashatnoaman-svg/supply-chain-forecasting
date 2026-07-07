@@ -53,6 +53,9 @@ def _cli() -> None:  # pragma: no cover
         raise SystemExit(f"input not found: {src} (run scripts/download_data.sh first)")
 
     df = pd.read_csv(src)
+    # Guarantee a NUMERIC sort so this path honors the same `int(timestamp)` coercion that the
+    # unit-tested split_events uses -- a str-typed column would otherwise sort lexicographically.
+    df["timestamp"] = df["timestamp"].astype(int)
     df = df.sort_values("timestamp", kind="stable")
     cut = int(len(df) * args.train_fraction)
     train_df, test_df = df.iloc[:cut], df.iloc[cut:]

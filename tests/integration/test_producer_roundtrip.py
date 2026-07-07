@@ -15,24 +15,12 @@ pytest.importorskip("confluent_kafka")
 pytestmark = pytest.mark.integration
 
 
-def _row(i: int) -> dict:
-    # String-typed CSV columns, matching what to_avro_record expects (pandas reads CSV as str
-    # when dtype=str). Close timestamps -> negligible sleep so 50 records stream fast.
-    return {
-        "timestamp": str(1442300000000 + i),
-        "visitorid": str(100 + (i % 5)),
-        "event": "view" if i % 2 == 0 else "transaction",
-        "itemid": str(10 + (i % 6)),  # 6 partition keys -> spreads across the 6 partitions
-        "price": "9.99" if i % 2 else "",
-    }
-
-
-def test_producer_roundtrip_preserves_order_and_count(kafka_env, live_topic):
+def test_producer_roundtrip_preserves_order_and_count(kafka_env, live_topic, make_row):
     from ingestion.generator.traffic_generator import run
     from libs.scf_common.io.kafka import AvroKafkaConsumer
 
     n = 50
-    rows = [_row(i) for i in range(n)]
+    rows = [make_row(i) for i in range(n)]
     produced = run(rows=rows, speed=100, surge=None)
     assert produced == n
 

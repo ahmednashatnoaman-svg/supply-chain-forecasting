@@ -18,6 +18,12 @@ from libs.scf_common.observability import ERRORS_TOTAL, RECORDS_PROCESSED, get_l
 _COMPONENT = "consumer-verifier"
 log = get_logger(__name__)
 
+# Commit offsets in batches rather than per-record -- a synchronous commit is a broker
+# round-trip, so per-record commits cap throughput at ~1 RTT/message. The verifier only needs
+# at-least-once accounting (it never re-runs with the same group id), so a final commit at loop
+# exit is sufficient; this batch interval just bounds re-delivery on a mid-run crash.
+_COMMIT_EVERY = 1000
+
 
 @dataclass
 class VerifyReport:
@@ -60,12 +66,18 @@ def verify(expected_count: int, timeout_s: int = 30) -> VerifyReport:
                     max_lag_ms = lag
                 received += 1
                 RECORDS_PROCESSED.labels(_COMPONENT).inc()
-                # Commit after counting so a crash mid-batch re-delivers (at-least-once).
-                consumer.commit()
+                # Batch commits to avoid a broker round-trip per record; a final commit after
+                # the loop catches any remainder. A crash mid-batch re-delivers (at-least-once).
+                if received % _COMMIT_EVERY == 0:
+                    consumer.commit()
             except Exception:  # noqa: BLE001 -- one bad record must not abort the verify
                 ERRORS_TOTAL.labels(_COMPONENT).inc()
                 log.exception("verifier.skip_bad_record")
-                consumer.commit()  # still advance past the poison pill
+                # Commit past the poison pill immediately so the next poll advances.
+                consumer.commit()
+        # Final commit for any uncommitted offsets in the trailing partial batch.
+        if received > 0:
+            consumer.commit()
     finally:
         consumer.close()
     missing = expected_count - received
