@@ -6,6 +6,8 @@ integration piece. All emails are simulated/free — see docs/reference/cost-and
 
 from __future__ import annotations
 
+import time
+
 DEFAULT_TARGET_STOCK = 200
 
 
@@ -34,37 +36,89 @@ def build_reorder(alert: dict, target_stock: int = DEFAULT_TARGET_STOCK) -> dict
     }
 
 
-def run_bridge() -> None:  # pragma: no cover - needs Kafka + n8n
-    """Consume system_alerts and POST build_reorder(...) to the n8n webhook.
+def _post_with_retry(url: str, payload: dict, *, retries: int, timeout: float) -> bool:
+    """POST ``payload`` to ``url`` with exponential backoff. Returns True on success.
 
-    TODO(ziad-plan Task 3): implement with AvroKafkaConsumer + requests.post(retry/backoff).
+    Uses ``requests`` (a free, pure-python lib that is already a transitive dependency). On final
+    failure returns False so the caller can skip the offset commit (at-least-once delivery — the
+    reorder is idempotent because ``build_reorder`` is a pure function of the alert).
     """
-    import requests
+    import requests  # type: ignore[import-untyped]
 
+    for attempt in range(retries):
+        try:
+            resp = requests.post(url, json=payload, timeout=timeout)
+            if resp.status_code < 400:
+                return True
+        except requests.exceptions.RequestException:
+            pass  # fall through to backoff + retry
+        if attempt < retries - 1:
+            time.sleep(0.1 * (2**attempt))  # 0.1s, 0.2s, 0.4s, ...
+    return False
+
+
+def run_bridge(
+    *,
+    max_messages: int | None = None,
+    webhook_url: str | None = None,
+    poll_timeout: float = 1.0,
+    post_retries: int = 3,
+    post_timeout: float = 5.0,
+) -> list[dict]:
+    """Consume ``system_alerts`` and POST ``build_reorder(...)`` to the n8n webhook.
+
+    Args:
+        max_messages: stop after this many successful posts (``None`` = run forever, production).
+        webhook_url: override ``settings.automation.n8n_webhook_url`` (used by tests).
+        poll_timeout: seconds to block on each Kafka poll.
+        post_retries: HTTP POST attempts before giving up on one alert.
+        post_timeout: per-request HTTP timeout in seconds.
+
+    Returns:
+        The list of reorder payloads that were posted successfully.
+
+    Offsets are committed **only after** a successful POST, giving at-least-once delivery
+    (safe because reorders are idempotent). A failed POST after all retries is logged and the
+    offset is left uncommitted so the alert is redelivered on the next run.
+    """
     from libs.scf_common.config import settings
     from libs.scf_common.contracts import Topics
     from libs.scf_common.io.kafka import AvroKafkaConsumer
-    from libs.scf_common.observability import ERRORS_TOTAL, get_logger
+    from libs.scf_common.observability import ERRORS_TOTAL, RECORDS_PROCESSED, get_logger
 
     log = get_logger("alert_bridge")
+    url = webhook_url or settings.automation.n8n_webhook_url
     consumer = AvroKafkaConsumer(
         Topics.SYSTEM_ALERTS, "system_alerts.avsc", group_id="alert-bridge"
     )
-    log.info("alert_bridge.started", webhook=settings.automation.n8n_webhook_url)
+    log.info("alert_bridge.started", webhook=url, max_messages=max_messages)
+    posted: list[dict] = []
     try:
-        while True:
-            alert = consumer.poll(1.0)
+        while max_messages is None or len(posted) < max_messages:
+            alert = consumer.poll(poll_timeout)
             if not alert:
                 continue
             payload = build_reorder(alert)
-            try:
-                requests.post(settings.automation.n8n_webhook_url, json=payload, timeout=5)
-                log.info("alert_bridge.reorder_sent", sku=payload["sku"], qty=payload["qty"])
-            except Exception as exc:  # noqa: BLE001
+            if _post_with_retry(url, payload, retries=post_retries, timeout=post_timeout):
+                consumer.commit()  # at-least-once: only commit after the downstream write succeeds
+                posted.append(payload)
+                RECORDS_PROCESSED.labels(component="alert_bridge").inc()
+                log.info(
+                    "alert_bridge.reorder_sent",
+                    sku=payload["sku"],
+                    qty=payload["qty"],
+                )
+            else:
                 ERRORS_TOTAL.labels(component="alert_bridge").inc()
-                log.error("alert_bridge.post_failed", error=str(exc))
+                log.error(
+                    "alert_bridge.post_failed_after_retries",
+                    sku=payload["sku"],
+                    retries=post_retries,
+                )
+                # offset intentionally NOT committed -> redelivery on next poll cycle
     finally:
         consumer.close()
+    return posted
 
 
 if __name__ == "__main__":  # pragma: no cover
