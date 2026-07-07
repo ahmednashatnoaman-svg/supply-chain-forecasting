@@ -52,6 +52,10 @@ def _post_with_retry(url: str, payload: dict, *, retries: int, timeout: float) -
             resp = requests.post(url, json=payload, timeout=timeout)
             if resp.status_code < 400:
                 return True
+            # A non-429 4xx (bad payload, wrong URL, auth) can't be fixed by retrying --
+            # only retry network errors, 5xx, and 429 (rate limit).
+            if resp.status_code < 500 and resp.status_code != 429:
+                return False
         except requests.exceptions.RequestException:
             pass  # fall through to backoff + retry
         if attempt < retries - 1:
