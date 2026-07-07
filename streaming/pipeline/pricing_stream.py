@@ -1,15 +1,20 @@
 """Structured Streaming dynamic-pricing engine. Implements Nashat plan Task 5.
 
 Reads live_web_traffic (Avro, Confluent wire format) -> windowed per-SKU velocity -> LSTM surge
-signal -> dynamic_price (reading Redis forecast/elasticity) -> honest price presentation -> emits
-automated_pricing_updates + system_alerts (low stock during a surge). Metrics + structured logs
-throughout via libs.scf_common.observability.
+signal (scored against a genuine per-SKU historical sequence, not a tiled snapshot -- see
+`price_row` / issue #36) -> dynamic_price (reading Redis forecast/elasticity) -> honest price
+presentation -> emits automated_pricing_updates + system_alerts (low stock during a surge). Metrics
++ structured logs throughout via libs.scf_common.observability.
 
-KNOWN SIMPLIFICATION (tracked as a follow-up issue): the LSTM's [SEQ_LEN, N_FEATURES] input is built
-by tiling the current micro-batch's aggregated features across SEQ_LEN steps, since true per-SKU
-historical sequence state (via mapGroupsWithState) isn't wired yet. This satisfies the model's tensor
-contract and produces a defensible surge signal, but is not a full historical replay — see
-docs/plans/nashat-plan.md for the tracked follow-up.
+The LSTM's [SEQ_LEN, N_FEATURES] input is a genuine per-SKU rolling history, persisted in Redis
+under `RedisKeys.lstm_sequence(sku)` and read-modify-written once per row inside `price_row` --
+the same pattern this codebase already uses for `price:current:*` and `velocity:*`. This is
+deliberately NOT a Spark `applyInPandasWithState` operator chained after `compute_velocity`'s
+windowed aggregation: Spark 3.5's planner rejects that chain outright in every output mode
+(`applyInPandasWithState ... is not supported with aggregation on a streaming DataFrame/Dataset`),
+confirmed by actually running it against real Kafka, not guessed. A cold-start SKU's first-ever
+window is tiled (there is no history yet), and every subsequent window pushes one more real step
+into the buffer, organically evicting the synthetic padding -- see `update_sequence_buffer`.
 """
 
 from __future__ import annotations
@@ -33,7 +38,7 @@ from libs.scf_common.observability import (
     serve_metrics,
 )
 from streaming.lstm.infer import predict_batch
-from streaming.lstm.model import SEQ_LEN, SurgeLSTM
+from streaming.lstm.model import N_FEATURES, SEQ_LEN, SurgeLSTM
 from streaming.pricing.formula import PricingConfig, dynamic_price
 from streaming.pricing.psychology import PsychologyConfig, present_price
 from streaming.sinks.kafka_sink import alert_producer, pricing_producer
@@ -41,6 +46,10 @@ from streaming.sinks.kafka_sink import alert_producer, pricing_producer
 log = get_logger("streaming.pricing")
 
 CONFLUENT_WIRE_PREFIX_BYTES = 5  # 1 magic byte + 4-byte Schema Registry ID
+
+# TTL on the per-SKU LSTM history buffer: a SKU quiet for 2 hours has its history dropped rather
+# than growing a Redis key forever for delisted/abandoned products.
+_LSTM_SEQUENCE_TTL_SECONDS = 2 * 60 * 60
 
 _PRICING_CFG = PricingConfig(
     elasticity_coeff=settings.pricing.elasticity_coeff,
@@ -104,16 +113,42 @@ def compute_velocity(events: DataFrame, window_seconds: int) -> DataFrame:
     )
 
 
-def build_lstm_sequence(
-    velocity: float, view_count: float, addtocart_count: float, price_delta: float
-) -> np.ndarray:
-    """Build a [SEQ_LEN, N_FEATURES] tensor from one window's aggregated features.
+def update_sequence_buffer(
+    buffer: list[float],
+    velocity: float,
+    view_count: float,
+    addtocart_count: float,
+    price_delta: float,
+) -> list[float]:
+    """Append one window's real feature vector to a per-SKU rolling history buffer.
 
-    KNOWN SIMPLIFICATION: tiles the current window's features across SEQ_LEN steps rather than a
-    true per-SKU historical sequence (would need mapGroupsWithState — tracked as a follow-up).
+    Real fix for issue #36: replaces the old "tile the current window SEQ_LEN times" simplification.
+    `buffer` is a flat list of floats (N_FEATURES per step, oldest step first). This appends the new
+    step, keeps only the most recent SEQ_LEN steps, and front-pads with the earliest known step so
+    the result always has the model's contractual `SEQ_LEN * N_FEATURES` length.
+
+    A cold-start SKU (buffer empty, first window ever seen) is tiled just like the old behavior --
+    there is no history to show yet -- but every subsequent call pushes in one more genuine
+    historical step, which the trim below organically evicts the synthetic padding to make room for.
     """
-    row = np.array([velocity, view_count, addtocart_count, price_delta], dtype=np.float32)
-    return np.tile(row, (SEQ_LEN, 1))
+    new_step = [float(velocity), float(view_count), float(addtocart_count), float(price_delta)]
+    updated = list(buffer) + new_step
+    max_len = SEQ_LEN * N_FEATURES
+
+    if len(updated) > max_len:
+        updated = updated[-max_len:]
+    elif len(updated) < max_len:
+        first_step = updated[:N_FEATURES]
+        pad_steps = (max_len - len(updated)) // N_FEATURES
+        updated = first_step * pad_steps + updated
+
+    return updated
+
+
+def reshape_lstm_sequence(sequence_flat: list[float]) -> np.ndarray:
+    """Reshape a flat `SEQ_LEN * N_FEATURES` history buffer into the model's [SEQ_LEN, N_FEATURES]
+    input tensor."""
+    return np.asarray(sequence_flat, dtype=np.float32).reshape(SEQ_LEN, N_FEATURES)
 
 
 def price_row(
@@ -127,8 +162,11 @@ def price_row(
 ) -> dict:
     """Compute the priced decision for one SKU's aggregated window.
 
-    Deterministic given the Redis client's current state and the model — the function itself has no
-    hidden state, which is what makes it unit-testable with fakeredis.
+    Reads this SKU's real historical feature sequence from Redis (`RedisKeys.lstm_sequence`),
+    appends the current window's features via `update_sequence_buffer` (issue #36's actual fix --
+    not a tiled single point), writes the updated buffer back, and scores the LSTM against it.
+    Deterministic given the Redis client's current state and the model, which is what makes this
+    unit-testable with fakeredis.
     """
     base_price = float(last_price) if last_price is not None else 0.0
     forecast_raw = redis.get(RedisKeys.forecast(item_id))
@@ -141,7 +179,19 @@ def price_row(
         if edges:
             elasticity = max(e["weight"] for e in edges)
 
-    seq = build_lstm_sequence(velocity, view_count, addtocart_count, price_delta=0.0)
+    sequence_key = RedisKeys.lstm_sequence(item_id)
+    existing_raw = redis.get(sequence_key)
+    existing_buffer: list[float] = json.loads(existing_raw) if existing_raw else []
+    sequence_flat = update_sequence_buffer(
+        existing_buffer,
+        velocity=velocity,
+        view_count=view_count,
+        addtocart_count=addtocart_count,
+        price_delta=0.0,
+    )
+    redis.set(sequence_key, json.dumps(sequence_flat), ex=_LSTM_SEQUENCE_TTL_SECONDS)
+
+    seq = reshape_lstm_sequence(sequence_flat)
     surge_prob = float(predict_batch(model, seq[np.newaxis, :, :])[0])
     is_surge = (
         surge_prob >= 0.5 and baseline > 0 and (velocity / baseline) > _PRICING_CFG.surge_threshold
@@ -234,12 +284,15 @@ def _load_production_model() -> SurgeLSTM | None:
         return None
 
 
-def run(trigger_once: bool = False) -> None:
+def run(trigger_once: bool = False, checkpoint_dir: str | None = None) -> None:
     """Start the streaming pricing job.
 
     Args:
         trigger_once: if True, use an `availableNow`-style single-batch trigger (used by the
             walking-skeleton e2e test) instead of the continuous processingTime trigger.
+        checkpoint_dir: overrides `settings.pricing.checkpoint_dir` -- tracks Kafka source offsets
+            across restarts (the per-SKU LSTM history buffer itself lives in Redis, not in this
+            checkpoint; see `price_row`).
     """
     serve_metrics(port=8000)
     spark = get_spark("streaming")
@@ -273,6 +326,7 @@ def run(trigger_once: bool = False) -> None:
     )
     query = (
         velocity.writeStream.foreachBatch(lambda df, bid: process_batch(df, bid, model))
+        .option("checkpointLocation", checkpoint_dir or settings.pricing.checkpoint_dir)
         .trigger(**trigger)
         .start()
     )
