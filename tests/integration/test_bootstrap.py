@@ -16,7 +16,6 @@ They are skipped gracefully when Docker is unavailable.
 from __future__ import annotations
 
 import subprocess
-import sys
 
 import pytest
 
@@ -76,9 +75,7 @@ def test_kafka_topic_exists(topic: str) -> None:
     )
 
     if result.returncode != 0:
-        pytest.skip(
-            f"kafka exec failed (stack may not be up): {result.stderr.strip()}"
-        )
+        pytest.skip(f"kafka exec failed (stack may not be up): {result.stderr.strip()}")
 
     listed_topics = result.stdout.splitlines()
     assert topic in listed_topics, (
@@ -105,13 +102,10 @@ def test_hdfs_medallion_dir_exists(zone: str) -> None:
         ]
     )
 
-    if result.returncode == 255:
-        pytest.skip(
-            "namenode exec failed (stack may not be up): "
-            + result.stderr.strip()
-        )
+    stderr = result.stderr.strip().lower()
+    if result.returncode == 255 or "is not running" in stderr:
+        pytest.skip("namenode exec failed (stack may not be up): " + result.stderr.strip())
 
     assert result.returncode == 0, (
-        f"HDFS directory /data/{zone} does not exist. "
-        f"Re-run: bash scripts/bootstrap.sh"
+        f"HDFS directory /data/{zone} does not exist. " f"Re-run: bash scripts/bootstrap.sh"
     )
