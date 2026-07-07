@@ -15,7 +15,13 @@ pytestmark = pytest.mark.unit
 
 
 def _row(ts: int, visitor: int = 1, item: int = 1) -> dict:
-    return {"timestamp": ts, "visitorid": visitor, "event": "view", "itemid": item, "price": ""}
+    return {
+        "timestamp": ts,
+        "visitorid": visitor,
+        "event": "view",
+        "itemid": item,
+        "price": "",
+    }
 
 
 def test_split_distinct_timestamps_80_20():
@@ -30,8 +36,10 @@ def test_split_distinct_timestamps_80_20():
 
 
 def test_split_equal_timestamps_preserves_order_and_counts():
-    rows = [{"timestamp": 5000, "visitorid": i, "event": "view", "itemid": i, "price": ""}
-            for i in range(10)]
+    rows = [
+        {"timestamp": 5000, "visitorid": i, "event": "view", "itemid": i, "price": ""}
+        for i in range(10)
+    ]
     train, test = split_events(rows, train_fraction=0.8)
     assert len(train) == 8
     assert len(test) == 2

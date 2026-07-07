@@ -37,12 +37,19 @@ def _cli() -> None:  # pragma: no cover
 
     import pandas as pd
 
-    p = argparse.ArgumentParser(description="Chronological 80/20 train/test split of events.csv")
-    p.add_argument(
-        "--input", default="data/raw/events.csv", help="source events.csv (timestamp-sorted is fine)"
+    p = argparse.ArgumentParser(
+        description="Chronological 80/20 train/test split of events.csv"
     )
     p.add_argument(
-        "--train-fraction", type=float, default=0.8, help="fraction of rows going to train"
+        "--input",
+        default="data/raw/events.csv",
+        help="source events.csv (timestamp-sorted is fine)",
+    )
+    p.add_argument(
+        "--train-fraction",
+        type=float,
+        default=0.8,
+        help="fraction of rows going to train",
     )
     p.add_argument("--train-out", default="data/raw/events_train.csv")
     p.add_argument("--test-out", default="data/raw/events_test.csv")
