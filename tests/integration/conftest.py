@@ -62,7 +62,7 @@ def schema_registry_url() -> str:
 
     # Pin Apicurio 2.x because `latest` can point at newer major versions with a different
     # Confluent-compatibility API layout; the tests intentionally use /apis/ccompat/v6.
-    apicurio = DockerContainer("quay.io/apicurio/apicurio-registry:2.6.2.Final")
+    apicurio = DockerContainer("quay.io/apicurio/apicurio-registry-mem:2.6.2.Final")
     # Default storage is in-memory (no APICURIO_STORAGE_KIND set) -- no Kafka dependency.
     apicurio.with_exposed_ports(8080)
     apicurio.start()
