@@ -4,7 +4,7 @@
   "namespace": "com.scf.contracts",
   "doc": "Operational alert emitted by the speed layer (e.g. low stock during a surge).",
   "fields": [
-    { "name": "event_time", "type": "long", "logicalType": "timestamp-millis" },
+    { "name": "event_time", "type": { "type": "long", "logicalType": "timestamp-millis" } },
     { "name": "item_id", "type": "long", "doc": "Product SKU. Partition key." },
     { "name": "alert_type", "type": { "type": "enum", "name": "AlertType",
         "symbols": ["LOW_STOCK", "SURGE", "PRICE_CAP_HIT"] } },
