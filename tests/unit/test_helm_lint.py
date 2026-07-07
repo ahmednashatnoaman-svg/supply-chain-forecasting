@@ -68,6 +68,6 @@ def test_templates_directory_not_empty() -> None:
     """templates/ must contain ≥1 .yaml file mirroring compose services."""
     templates = list((CHART_DIR / "templates").glob("*.yaml"))
     assert templates, (
-        f"infra/helm/supply-chain/templates/ is empty — "
-        f"add Deployment + Service manifests mirroring the compose stack"
+        "infra/helm/supply-chain/templates/ is empty — "
+        "add Deployment + Service manifests mirroring the compose stack"
     )

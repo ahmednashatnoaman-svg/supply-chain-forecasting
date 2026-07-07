@@ -14,9 +14,9 @@ Tests are skipped gracefully when Prometheus is not reachable.
 
 from __future__ import annotations
 
+import json
 import urllib.error
 import urllib.request
-import json
 
 import pytest
 
@@ -45,9 +45,7 @@ def _fetch_targets() -> dict:  # type: ignore[type-arg]
 def test_prometheus_api_reachable() -> None:
     """Assert the Prometheus HTTP API responds."""
     data = _fetch_targets()
-    assert data.get("status") == "success", (
-        f"Prometheus targets API returned non-success: {data}"
-    )
+    assert data.get("status") == "success", f"Prometheus targets API returned non-success: {data}"
 
 
 @pytest.mark.parametrize("job", REQUIRED_JOBS)
@@ -74,12 +72,8 @@ def test_required_scrape_job_is_up(job: str) -> None:
         pytest.skip(f"No active targets for job '{job}' — run the full stack first")
 
     down = [t for t in job_targets if t.get("health") != "up"]
-    assert not down, (
-        f"Some targets for job '{job}' are DOWN:\n"
-        + "\n".join(
-            f"  {t['labels'].get('instance', '?')} → {t.get('lastError', 'no error')}"
-            for t in down
-        )
+    assert not down, f"Some targets for job '{job}' are DOWN:\n" + "\n".join(
+        f"  {t['labels'].get('instance', '?')} → {t.get('lastError', 'no error')}" for t in down
     )
 
 
@@ -94,7 +88,6 @@ def test_optional_scrape_job_up_if_present(job: str) -> None:
         pytest.skip(f"Optional job '{job}' has no targets (layer not started)")
 
     down = [t for t in job_targets if t.get("health") != "up"]
-    assert not down, (
-        f"Optional job '{job}' targets are DOWN: "
-        + str([t.get("lastError") for t in down])
+    assert not down, f"Optional job '{job}' targets are DOWN: " + str(
+        [t.get("lastError") for t in down]
     )
