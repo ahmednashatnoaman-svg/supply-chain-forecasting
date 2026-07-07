@@ -71,14 +71,24 @@ def render(events: list[dict] | None = None, source=None) -> go.Figure:
     return fig
 
 
-if __name__ != "__main__":  # rendered by Streamlit
+if __name__ == "__main__":  # rendered by Streamlit
+    # Streamlit execs every script it runs -- both app.py and each pages/*.py -- with
+    # __name__ == "__main__" (verified against the installed streamlit; there is no dotted
+    # module name at runtime). Unit tests import this file as a real submodule instead
+    # (`automation.dashboard.pages.2_price_ticker`), so this guard skips the live-rendering side
+    # effects during import while still running them under a real `streamlit run`.
     try:
         import streamlit as st
 
         from automation.dashboard.components.kafka_source import collect_price_updates
 
         st.header("Autonomous Price Ticker")
-        updates = collect_price_updates()
-        st.plotly_chart(render(events=updates), use_container_width=True)
+
+        @st.fragment(run_every="5s")
+        def _live_ticker() -> None:
+            updates = collect_price_updates()
+            st.plotly_chart(render(events=updates), use_container_width=True)
+
+        _live_ticker()
     except Exception:  # pragma: no cover - importable without a running Streamlit server
         pass
