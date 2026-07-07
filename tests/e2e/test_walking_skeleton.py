@@ -125,7 +125,11 @@ def test_surge_event_produces_price_update_and_low_stock_alert(
     assert priced["item_id"] == sku
     assert priced["velocity"] == 50
     assert priced["baseline"] == 5.0
-    assert priced["new_price"] >= priced["base_price"]  # never prices below the base
+    # model=None -> surge_prob 0.0 -> no surge -> dynamic_price returns base_price (20.0) unchanged,
+    # but present_price ALWAYS charm-rounds what it displays, even a genuinely unchanged price -- by
+    # design this can round DOWN (20.00 -> 19.99), see streaming/pricing/psychology.py and
+    # test_present_price_unchanged_has_no_anchor in test_psychology.py.
+    assert priced["new_price"] == 19.99
 
     assert len(produced_alerts) == 1
     assert produced_alerts[0]["alert_type"] == "LOW_STOCK"
