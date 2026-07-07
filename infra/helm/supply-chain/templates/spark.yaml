@@ -1,0 +1,85 @@
+# Spark Master Deployment + Service + Spark Workers Deployment.
+# Mirrors spark-master / spark-worker services in docker-compose.yml.
+# Scale workers via: helm upgrade ... --set sparkWorker.replicas=3
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-spark-master
+  labels:
+    app: spark-master
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-master
+  template:
+    metadata:
+      labels:
+        app: spark-master
+    spec:
+      containers:
+        - name: spark-master
+          image: {{ .Values.sparkWorker.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command:
+            - /opt/spark/bin/spark-class
+            - org.apache.spark.deploy.master.Master
+          env:
+            - name: SPARK_MASTER_HOST
+              value: {{ .Release.Name }}-spark-master
+          ports:
+            - name: rpc
+              containerPort: 7077
+            - name: webui
+              containerPort: 8080  # container-internal port (Spark always listens on 8080 inside the pod)
+              # On Docker Compose the host port is remapped: 8088:8080 (avoids Oracle TNS on 8080).
+              # In Kubernetes expose via NodePort/Ingress; do not change this containerPort.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-spark-master
+spec:
+  selector:
+    app: spark-master
+  ports:
+    - name: rpc
+      port: 7077
+      targetPort: 7077
+    - name: webui
+      port: 8080      # cluster-internal Service port; add a NodePort / Ingress for external access
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-spark-worker
+  labels:
+    app: spark-worker
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.sparkWorker.replicas }}
+  selector:
+    matchLabels:
+      app: spark-worker
+  template:
+    metadata:
+      labels:
+        app: spark-worker
+    spec:
+      containers:
+        - name: spark-worker
+          image: {{ .Values.sparkWorker.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command:
+            - /opt/spark/bin/spark-class
+            - org.apache.spark.deploy.worker.Worker
+            - spark://{{ .Release.Name }}-spark-master:7077
+          env:
+            - name: SPARK_WORKER_CORES
+              value: "{{ .Values.sparkWorker.cores }}"
+            - name: SPARK_WORKER_MEMORY
+              value: {{ .Values.sparkWorker.memory }}

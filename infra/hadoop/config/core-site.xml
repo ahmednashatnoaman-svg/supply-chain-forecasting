@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hadoop core-site.xml — local single-node HDFS (Nagy, plan Task 1).
+  This file is for reference; the apache/hadoop:3.3.6 Docker image reads
+  configuration from environment variables declared in hadoop.env (preferred).
+  The env-var approach avoids mounting XML files into the container.
+-->
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://namenode:9000</value>
+    <description>Default filesystem URI — points to the HDFS namenode.</description>
+  </property>
+  <property>
+    <name>hadoop.http.staticuser.user</name>
+    <value>root</value>
+    <description>User shown in HDFS UI for unauthenticated access (local dev only).</description>
+  </property>
+</configuration>

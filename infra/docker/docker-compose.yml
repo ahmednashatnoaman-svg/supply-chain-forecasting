@@ -13,6 +13,7 @@ volumes:
   hdfs-data:
   grafana-data:
   airflow-db:
+  mlflow-data:
 
 services:
   # ---------------- Kafka + Schema Registry ----------------
@@ -73,11 +74,22 @@ services:
     hostname: namenode
     networks: [scf-net]
     ports: ["9870:9870", "9000:9000"]
+    # Run as root so Docker volume (root-owned) can be formatted + written.
+    # The starter.sh script generates XML config from env vars, then starts the namenode.
+    # ENSURE_NAMENODE_DIR points to the 'current' subdirectory (only created after format)
+    # so the first-boot format is triggered correctly even though Docker pre-creates the mount dir.
+    user: root
     command: ["hdfs", "namenode"]
     environment:
-      ENSURE_NAMENODE_DIR: /tmp/hadoop-root/dfs/name
-    env_file: [../hadoop/config/hadoop.env]
-    volumes: ["hdfs-name:/tmp/hadoop-root/dfs/name"]
+      ENSURE_NAMENODE_DIR: /opt/hadoop/data/namenode/current
+      CORE-SITE.XML_fs.defaultFS: hdfs://namenode:9000
+      CORE-SITE.XML_hadoop.http.staticuser.user: root
+      HDFS-SITE.XML_dfs.replication: "1"
+      HDFS-SITE.XML_dfs.namenode.rpc-bind-host: "0.0.0.0"
+      HDFS-SITE.XML_dfs.permissions.enabled: "false"
+      HDFS-SITE.XML_dfs.namenode.name.dir: /opt/hadoop/data/namenode
+      HDFS-SITE.XML_dfs.datanode.data.dir: /opt/hadoop/data/datanode
+    volumes: ["hdfs-name:/opt/hadoop/data/namenode"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9870"]
       interval: 15s
@@ -89,16 +101,23 @@ services:
     profiles: [core, full]
     depends_on: [namenode]
     networks: [scf-net]
+    user: root
     command: ["hdfs", "datanode"]
-    env_file: [../hadoop/config/hadoop.env]
-    volumes: ["hdfs-data:/tmp/hadoop-root/dfs/data"]
+    environment:
+      CORE-SITE.XML_fs.defaultFS: hdfs://namenode:9000
+      HDFS-SITE.XML_dfs.replication: "1"
+      HDFS-SITE.XML_dfs.permissions.enabled: "false"
+      HDFS-SITE.XML_dfs.datanode.data.dir: /opt/hadoop/data/datanode
+    volumes: ["hdfs-data:/opt/hadoop/data/datanode"]
+
+
 
   # ---------------- Spark cluster ----------------
   spark-master:
     image: apache/spark:3.5.1
     profiles: [core, full]
     networks: [scf-net]
-    ports: ["7077:7077", "8080:8080"]
+    ports: ["7077:7077", "8088:8080"]   # 8080 remapped: host port 8080 used by Oracle TNS Listener
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
     environment:
       SPARK_MASTER_HOST: spark-master
@@ -197,6 +216,7 @@ services:
     profiles: [full]
     networks: [scf-net]
     ports: ["5000:5000"]
+    volumes: ["mlflow-data:/mlflow"]   # persist DB + artifacts; fixes sqlite3 'unable to open' error
     command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000",
               "--backend-store-uri", "sqlite:////mlflow/mlflow.db",
               "--default-artifact-root", "/mlflow/artifacts"]
@@ -223,7 +243,7 @@ services:
     profiles: [full]
     depends_on: [prometheus]
     networks: [scf-net]
-    ports: ["3000:3000"]
+    ports: ["3001:3000"]   # 3000 remapped: host port 3000 already in use on this machine
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "true"
