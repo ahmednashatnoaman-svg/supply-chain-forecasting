@@ -11,6 +11,7 @@ Single source of truth for the serving cache. Access **only** via
 | `price:current:{sku}` | float as string | 1h | Nashat (speed) | Ziad |
 | `inventory:{sku}` | int as string | none | Hatem / Nashat | Nashat, Ziad |
 | `velocity:{sku}:{window}` | float as string | 5m | Nashat (speed) | Ziad |
+| `lstm:sequence:{sku}` | JSON: flat list of `SEQ_LEN * N_FEATURES` floats | 2h | Nashat (speed) | Nashat (speed) |
 
 `{sku}` is the numeric `item_id`. `{window}` is the window label, e.g. `60s`.
 
@@ -23,10 +24,21 @@ RedisKeys.community("10")       -> "graph:community:10"
 RedisKeys.price("10")           -> "price:current:10"
 RedisKeys.inventory("10")       -> "inventory:10"
 RedisKeys.velocity("10", "60s") -> "velocity:10:60s"
+RedisKeys.lstm_sequence("10")   -> "lstm:sequence:10"
 ```
 
 ## Consistency rules
 - Batch writes are **atomic per SKU** (Redis pipeline / MULTI) so the stream never reads a half-updated
   forecast+graph pair.
-- The stream is the **only** writer of `price:current:*` and `velocity:*`. Batch is the only writer of
-  `forecast:*` and `graph:*`. No key has two writers → no race.
+- The stream is the **only** writer of `price:current:*`, `velocity:*`, and `lstm:sequence:*`. Batch is
+  the only writer of `forecast:*` and `graph:*`. No key has two writers → no race.
+
+## Why `lstm:sequence:{sku}` lives in Redis, not Spark state
+
+The LSTM's per-SKU historical feature sequence (issue #36) is read-modify-written per row inside
+`process_batch`/`price_row`, the same way `price:current:*` and `velocity:*` already are — not
+maintained via a Spark `applyInPandasWithState` operator chained after `compute_velocity`'s windowed
+aggregation. Spark 3.5's planner rejects that chain outright (`applyInPandasWithState ... is not
+supported with aggregation on a streaming DataFrame/Dataset`, confirmed by actually running it), in
+any output mode. An externally-held per-key buffer (Redis, TTL'd) sidesteps the restriction entirely
+and matches every other piece of cross-batch per-SKU state this project already keeps in Redis.

@@ -69,6 +69,11 @@ class PricingSettings:
         default_factory=lambda: float(_get("SURGE_VELOCITY_THRESHOLD", "2.0"))
     )
     window_seconds: int = field(default_factory=lambda: int(_get("STREAMING_WINDOW_SECONDS", "60")))
+    checkpoint_dir: str = field(
+        default_factory=lambda: _get(
+            "STREAMING_CHECKPOINT_DIR", "/tmp/scf-checkpoints/pricing_stream"
+        )
+    )
 
 
 @dataclass(frozen=True)

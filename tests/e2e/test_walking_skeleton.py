@@ -2,7 +2,9 @@
 
 Proves the real pipeline works against REAL Kafka + Redis (via testcontainers, not fakes): produce a
 burst of transaction events for one SKU with a low seeded forecast baseline -> parse_events ->
-compute_velocity -> process_batch -> assert a priced update and a LOW_STOCK alert are produced.
+compute_velocity -> process_batch (which reads/writes this SKU's real LSTM history sequence in
+Redis, per-row -- see pricing_stream.price_row / issue #36) -> assert a priced update and a
+LOW_STOCK alert are produced.
 
 SCOPE NOTE: testcontainers-python has no first-party Schema Registry module, and hand-rolling one via
 a generic container wired to Kafka's internal Docker network is a nontrivial, version-sensitive task.
@@ -108,7 +110,8 @@ def test_surge_event_produces_price_update_and_low_stock_alert(
     monkeypatch.setattr(ps, "alert_producer", lambda: _FakeSink(produced_alerts))
 
     # --- exercise the real pipeline against the real Kafka topic (batch read is sufficient: the
-    # same parse_events/compute_velocity code path is shared by the streaming `run()`) ---
+    # same parse_events/compute_velocity code path is shared by the streaming `run()`; process_batch
+    # reads/writes this SKU's real LSTM history sequence in Redis per row -- issue #36) ---
     raw = (
         spark.read.format("kafka")
         .option("kafka.bootstrap.servers", bootstrap)

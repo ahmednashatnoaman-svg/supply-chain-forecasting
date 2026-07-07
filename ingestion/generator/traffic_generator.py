@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from ingestion.generator.surge import SurgeSchedule
@@ -109,7 +109,12 @@ def _maybe_sleep(
     cur_ts = int(rows[idx]["timestamp"])
     next_ts = int(rows[idx + 1]["timestamp"])
     gap_s = max(0.0, (next_ts - cur_ts) / 1000.0)
-    mult = surge.multiplier(datetime.fromtimestamp(cur_ts / 1000.0)) if surge else 1.0
+    # The dataset's epoch millis are UTC, and SurgeSchedule's window bounds are naive datetimes
+    # intended to represent that same UTC event time (contract per surge.py's own tests) -- convert
+    # to a naive-but-UTC datetime rather than datetime.fromtimestamp()'s local-timezone conversion,
+    # which would silently shift every surge-window comparison by the host's UTC offset.
+    event_dt = datetime.fromtimestamp(cur_ts / 1000.0, tz=timezone.utc).replace(tzinfo=None)
+    mult = surge.multiplier(event_dt) if surge else 1.0
     if mult <= 0:
         mult = 1.0
     sleep_s = gap_s / (speed * mult)

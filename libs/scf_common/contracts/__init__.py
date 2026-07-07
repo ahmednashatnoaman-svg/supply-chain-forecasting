@@ -45,6 +45,10 @@ class RedisKeys:
     def velocity(sku: str | int, window: str) -> str:
         return f"velocity:{sku}:{window}"
 
+    @staticmethod
+    def lstm_sequence(sku: str | int) -> str:
+        return f"lstm:sequence:{sku}"
+
 
 class HdfsPaths:
     """Medallion path builders. Base dirs come from settings.hdfs. See contracts/hdfs/medallion.md."""

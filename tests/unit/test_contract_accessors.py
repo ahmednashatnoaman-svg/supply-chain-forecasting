@@ -22,6 +22,7 @@ def test_redis_keys():
     assert RedisKeys.price("10") == "price:current:10"
     assert RedisKeys.inventory("10") == "inventory:10"
     assert RedisKeys.velocity("10", "60s") == "velocity:10:60s"
+    assert RedisKeys.lstm_sequence("10") == "lstm:sequence:10"
 
 
 def test_hdfs_paths():
