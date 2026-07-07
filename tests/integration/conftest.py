@@ -60,7 +60,9 @@ def schema_registry_url() -> str:
     """
     from testcontainers.core.container import DockerContainer
 
-    apicurio = DockerContainer("apicurio/apicurio-registry:latest")
+    # Pin Apicurio 2.x because `latest` can point at newer major versions with a different
+    # Confluent-compatibility API layout; the tests intentionally use /apis/ccompat/v6.
+    apicurio = DockerContainer("apicurio/apicurio-registry:2.6.2.Final")
     # Default storage is in-memory (no APICURIO_STORAGE_KIND set) -- no Kafka dependency.
     apicurio.with_exposed_ports(8080)
     apicurio.start()
