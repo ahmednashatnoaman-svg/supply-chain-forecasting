@@ -44,11 +44,13 @@ except Exception:  # pragma: no cover - landing page still renders without a run
     st.info("KPI summary unavailable — waiting for Redis / the speed layer to publish data.")
 
 st.divider()
-st.markdown("""
+st.markdown(
+    """
     Use the sidebar to navigate:
     - **Forecast vs Actual** — baseline demand line vs live streaming demand.
     - **Price Ticker** — autonomous price changes as they happen.
     - **Automation Log** — auto-triggered reorders / alerts.
-    """)
+    """
+)
 
 # Streamlit auto-discovers files in `pages/`. This file is the landing page.
