@@ -60,6 +60,9 @@ data/gold/
 node_modules/
 .streamlit/secrets.toml
 
+# ---- Local personal tooling (never shared/committed) ----
+.reference-skills/
+
 # ---- OS / IDE ----
 .DS_Store
 Thumbs.db
