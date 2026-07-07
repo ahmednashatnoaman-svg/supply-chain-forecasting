@@ -2,26 +2,144 @@
   "title": "Supply Chain — Platform Overview",
   "uid": "scf-overview",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
+  "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
+  "tags": ["supply-chain", "platform"],
+  "description": "Platform health: throughput, errors, and latency across all SCF layers (Nagy, plan Task 3).",
   "panels": [
     {
+      "id": 1,
       "type": "stat",
-      "title": "Records processed (rate)",
+      "title": "Records Processed — rate(5m)",
+      "description": "Sum of scf_records_processed_total across all components.",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
-      "targets": [{ "expr": "sum(rate(scf_records_processed_total[5m])) by (component)" }]
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(scf_records_processed_total[5m])) by (component)",
+          "legendFormat": "{{component}}",
+          "refId": "A"
+        }
+      ]
     },
     {
+      "id": 2,
       "type": "stat",
-      "title": "Errors (rate)",
+      "title": "Errors — rate(5m)",
+      "description": "Sum of scf_errors_total across all components. Should be 0.",
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-      "targets": [{ "expr": "sum(rate(scf_errors_total[5m])) by (component)" }]
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "red", "value": 1 }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(scf_errors_total[5m])) by (component)",
+          "legendFormat": "{{component}}",
+          "refId": "A"
+        }
+      ]
     },
     {
+      "id": 3,
       "type": "timeseries",
-      "title": "Processing latency (p95)",
+      "title": "Processing Latency — p95 (5m window)",
+      "description": "95th-percentile latency in seconds across all SCF layers.",
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
-      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(scf_latency_seconds_bucket[5m])) by (le, component))" }]
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(scf_latency_seconds_bucket[5m])) by (le, component))",
+          "legendFormat": "p95 {{component}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Kafka — Consumer Lag",
+      "description": "Consumer lag per topic/group from kafka-exporter.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kafka_consumergroup_lag) by (topic, consumergroup)",
+          "legendFormat": "{{topic}} / {{consumergroup}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Redis — Commands / sec",
+      "description": "Redis instantaneous_ops_per_sec from redis-exporter.",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "redis_instantaneous_ops_per_sec",
+          "legendFormat": "ops/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "gauge",
+      "title": "Prometheus — Active Scrape Targets",
+      "description": "Number of targets currently in 'up' state.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "color": "red", "value": null },
+            { "color": "yellow", "value": 2 },
+            { "color": "green", "value": 4 }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(up == 1)",
+          "legendFormat": "targets up",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Kafka — Messages In / sec (by topic)",
+      "description": "Rate of messages produced to each topic.",
+      "gridPos": { "h": 5, "w": 18, "x": 6, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(kafka_topic_partition_current_offset[2m])) by (topic)",
+          "legendFormat": "{{topic}}",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }

@@ -12,11 +12,24 @@ kafka:
   replicas: 1
   port: 9092
 
+zookeeper:
+  image: confluentinc/cp-zookeeper:7.6.1
+  replicas: 1
+  port: 2181
+
+hdfs:
+  image: apache/hadoop:3.3.6
+
 sparkWorker:
   image: apache/spark:3.5.1
   replicas: 2
   cores: 2
   memory: 2G
+
+mlflow:
+  image: ghcr.io/mlflow/mlflow:v2.14.1
+  replicas: 1
+  port: 5000
 
 # NOTE: this chart is provided for portability. Deploying it to a *paid* managed cluster would incur
 # cost and violates the project's zero-cost rule. Use a free local cluster (kind/minikube) if you must.
