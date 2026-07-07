@@ -33,7 +33,7 @@ Inherits [master §Global Constraints](../master-plan.md#global-constraints). Us
 - Produces: `class SurgeSchedule` with `def multiplier(self, ts: datetime) -> float` — returns the
   speed multiplier active at `ts` (1.0 normal, e.g. 5.0 during a configured surge window).
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 ```python
 # tests/unit/test_surge.py
 from datetime import datetime
@@ -43,10 +43,10 @@ def test_multiplier_inside_and_outside_window():
     assert s.multiplier(datetime(2026,1,1,10,30)) == 5.0
     assert s.multiplier(datetime(2026,1,1,9,0)) == 1.0
 ```
-- [ ] **Step 2: Run, expect FAIL** (`ModuleNotFoundError`).
-- [ ] **Step 3: Implement `SurgeSchedule`** parsing ISO windows, returning the matching multiplier else 1.0.
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(ingestion): surge schedule model`.
+- [x] **Step 2: Run, expect FAIL** (`ModuleNotFoundError`).
+- [x] **Step 3: Implement `SurgeSchedule`** parsing ISO windows, returning the matching multiplier else 1.0.
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(ingestion): surge schedule model`.
 
 ### Task 2: Avro serialization matches the contract
 
@@ -56,25 +56,25 @@ def test_multiplier_inside_and_outside_window():
 - Produces: `def to_avro_record(row: dict) -> dict` conforming to the schema fields
   `{event_time:long, visitor_id:long, event:string, item_id:long, price:double|null}`.
 
-- [ ] **Step 1: Failing test** — build a record from a sample row and assert `fastavro.validate(record,
+- [x] **Step 1: Failing test** — build a record from a sample row and assert `fastavro.validate(record,
   schema)` is True and rejects a bad type.
-- [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement `to_avro_record`** mapping Retailrocket columns → schema fields.
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(ingestion): contract-conformant avro records`.
+- [x] **Step 2: Run, expect FAIL.**
+- [x] **Step 3: Implement `to_avro_record`** mapping Retailrocket columns → schema fields.
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(ingestion): contract-conformant avro records`.
 
 ### Task 3: Producer round-trips through real Kafka (integration)
 
 **Files:** Modify `ingestion/generator/traffic_generator.py`; Test `tests/integration/test_producer_roundtrip.py`
 **Interfaces:** Produces CLI `python -m ingestion.generator.traffic_generator --speed 100 --limit N`.
 
-- [ ] **Step 1: Failing test** — with a `testcontainers` Kafka + Apicurio, produce N records then
+- [x] **Step 1: Failing test** — with a `testcontainers` Kafka + Apicurio, produce N records then
   consume and assert count == N and first/last `event_time` ordering preserved.
-- [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement** the replay loop: read CSV in timestamp order, apply `SurgeSchedule` to sleep
+- [x] **Step 2: Run, expect FAIL.**
+- [x] **Step 3: Implement** the replay loop: read CSV in timestamp order, apply `SurgeSchedule` to sleep
   intervals (`interval / multiplier`), produce Avro. Flush on exit.
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(ingestion): timestamp-ordered producer with surge speed`.
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(ingestion): timestamp-ordered producer with surge speed`.
 
 ### Task 4: Verifier detects loss/lag
 
@@ -82,16 +82,16 @@ def test_multiplier_inside_and_outside_window():
 **Interfaces:** Produces `def verify(expected_count:int, timeout_s:int) -> VerifyReport` with
 `received`, `missing`, `max_lag_ms`.
 
-- [ ] **Step 1: Failing test** — produce 500, verify reports `missing == 0`.
-- [ ] **Step 2..4:** implement consumer that counts, tracks offsets, computes lag; PASS.
-- [ ] **Step 5: Commit** — `feat(ingestion): consumer verifier with loss/lag report`.
+- [x] **Step 1: Failing test** — produce 500, verify reports `missing == 0`.
+- [x] **Step 2..4:** implement consumer that counts, tracks offsets, computes lag; PASS.
+- [x] **Step 5: Commit** — `feat(ingestion): consumer verifier with loss/lag report`.
 
 ### Task 5: Data staging to HDFS bronze
 
 **Files:** `scripts/download_data.sh`, `scripts/hdfs_load.sh`; Test `tests/integration/test_hdfs_stage.py`
 **Interfaces:** Produces bronze CSVs at `contracts/hdfs` bronze paths for Emad's ETL.
 
-- [ ] **Step 1: Failing test** — after staging, `hdfs dfs -test -e /data/bronze/events` exits 0.
-- [ ] **Step 2..4:** `download_data.sh` pulls Retailrocket via Kaggle API (free) into `data/raw/`;
+- [x] **Step 1: Failing test** — after staging, `hdfs dfs -test -e /data/bronze/events` exits 0.
+- [x] **Step 2..4:** `download_data.sh` pulls Retailrocket via Kaggle API (free) into `data/raw/`;
   `hdfs_load.sh` `-put`s events + item_properties + category_tree into bronze. PASS.
-- [ ] **Step 5: Commit** — `feat(ingestion): stage retailrocket into HDFS bronze`.
+- [x] **Step 5: Commit** — `feat(ingestion): stage retailrocket into HDFS bronze`.
