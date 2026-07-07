@@ -15,13 +15,7 @@ pytestmark = pytest.mark.unit
 
 
 def _row(ts: int, visitor: int = 1, item: int = 1) -> dict:
-    return {
-        "timestamp": ts,
-        "visitorid": visitor,
-        "event": "view",
-        "itemid": item,
-        "price": "",
-    }
+    return {"timestamp": ts, "visitorid": visitor, "event": "view", "itemid": item, "price": ""}
 
 
 def test_split_distinct_timestamps_80_20():

@@ -38,16 +38,12 @@ def to_avro_record(row: dict) -> dict:
     Returns:
         Avro-conformant dict {event_time, visitor_id, event, item_id, price}.
     """
-    event = str(row["event"])
-    if event not in EVENT_ENUM:
-        raise ValueError(f"unknown event type: {event}")
-    price = row.get("price")
     return {
         "event_time": int(row["timestamp"]),
         "visitor_id": int(row["visitorid"]),
-        "event": event,
+        "event": row["event"],
         "item_id": int(row["itemid"]),
-        "price": float(price) if price not in (None, "") else None,
+        "price": float(row["price"]) if row.get("price") else None,
     }
 
 
