@@ -8,9 +8,20 @@ snapshot so no broker is required.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import plotly.graph_objects as go
 
 _FALLBACK_SKUS = ["10", "20", "30"]
+
+
+def _event_time_ms(raw: int | datetime) -> int:
+    """Normalize a decoded ``event_time`` to epoch millis.
+
+    The contract's ``event_time`` is Avro logical type timestamp-millis, which the schema-registry
+    deserializer decodes to a ``datetime`` in real Kafka use; unit tests pass plain ints.
+    """
+    return int(raw.timestamp() * 1000) if isinstance(raw, datetime) else int(raw)
 
 
 def render(events: list[dict] | None = None, source=None) -> go.Figure:
@@ -28,7 +39,7 @@ def render(events: list[dict] | None = None, source=None) -> go.Figure:
         by_sku: dict[str, list[tuple[int, float]]] = {}
         for e in events:
             by_sku.setdefault(str(e["item_id"]), []).append(
-                (int(e["event_time"]), float(e["new_price"]))
+                (_event_time_ms(e["event_time"]), float(e["new_price"]))
             )
         for sku, pts in by_sku.items():
             pts.sort(key=lambda p: p[0])

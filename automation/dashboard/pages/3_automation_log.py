@@ -12,11 +12,17 @@ from datetime import datetime, timezone
 _IDLE = [{"time": "—", "sku": "—", "alert": "—", "message": "waiting for system_alerts…"}]
 
 
-def _fmt_time(event_time_ms: int) -> str:
+def _fmt_time(event_time: int | datetime | None) -> str:
     try:
-        return datetime.fromtimestamp(int(event_time_ms) / 1000, tz=timezone.utc).strftime(
-            "%H:%M:%S"
-        )
+        # The contract's `event_time` is Avro logical type timestamp-millis, which the
+        # schema-registry deserializer decodes to a `datetime` in real Kafka use; unit tests pass
+        # plain ints. Without this branch, real alerts always fell into the except below and
+        # silently rendered "—" instead of the actual time.
+        if isinstance(event_time, datetime):
+            dt = event_time if event_time.tzinfo else event_time.replace(tzinfo=timezone.utc)
+        else:
+            dt = datetime.fromtimestamp(int(event_time) / 1000, tz=timezone.utc)
+        return dt.strftime("%H:%M:%S")
     except (TypeError, ValueError, OSError):
         return "—"
 
