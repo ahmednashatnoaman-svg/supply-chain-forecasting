@@ -87,7 +87,7 @@ class AvroKafkaConsumer:
 
     def poll(self, timeout: float = 1.0) -> dict | None:
         msg = self._consumer.poll(timeout)
-        if msg is None:
+        if msg is None or msg.error():
             return None
         ctx = SerializationContext(self.topic, MessageField.VALUE)
         return self._deserializer(msg.value(), ctx)

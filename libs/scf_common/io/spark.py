@@ -27,6 +27,7 @@ def get_spark(app_suffix: str = "") -> SparkSession:
         SparkSession.builder.appName(name)
         .master(settings.spark.master)
         .config("spark.jars.packages", _PACKAGES)
+        .config("spark.jars.repositories", "https://repos.spark-packages.org/")
         .config("spark.executor.memory", settings.spark.executor_memory)
         .config("spark.driver.memory", settings.spark.driver_memory)
         .config(

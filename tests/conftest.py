@@ -23,8 +23,9 @@ def spark():
         # these via get_spark()'s _PACKAGES, but tests use this lighter fixture instead.
         .config(
             "spark.jars.packages",
-            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.spark:spark-avro_2.12:3.5.1",
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.spark:spark-avro_2.12:3.5.1,graphframes:graphframes:0.8.3-spark3.5-s_2.12",
         )
+        .config("spark.jars.repositories", "https://repos.spark-packages.org/")
         .getOrCreate()
     )
     yield session
