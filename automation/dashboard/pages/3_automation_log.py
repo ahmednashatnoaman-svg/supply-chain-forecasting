@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-_IDLE = [{"time": "—", "sku": "—", "alert": "—", "message": "waiting for system_alerts…"}]
+_IDLE = [
+    {"time": "—", "sku": "—", "alert": "—", "icon": "⏳", "message": "waiting for system_alerts…"}
+]
+
+_ALERT_ICONS = {"LOW_STOCK": "⚠️", "SURGE": "🔥"}
 
 
 def _fmt_time(event_time: int | datetime | None) -> str:
@@ -38,25 +42,37 @@ def render(events: list[dict] | None = None) -> list[dict]:
         return list(_IDLE)
     rows: list[dict] = []
     for e in events:
+        alert_type = e.get("alert_type")
         rows.append(
             {
                 "time": _fmt_time(e.get("event_time")),
                 "sku": e.get("item_id"),
-                "alert": e.get("alert_type"),
+                "alert": alert_type,
+                "icon": _ALERT_ICONS.get(alert_type, "ℹ️"),
                 "message": (e.get("message") or "")[:80],
             }
         )
     return rows
 
 
-if __name__ != "__main__":  # rendered by Streamlit
+if __name__ == "__main__":  # rendered by Streamlit
+    # Streamlit execs every script it runs -- both app.py and each pages/*.py -- with
+    # __name__ == "__main__" (verified against the installed streamlit; there is no dotted
+    # module name at runtime). Unit tests import this file as a real submodule instead
+    # (`automation.dashboard.pages.3_automation_log`), so this guard skips the live-rendering side
+    # effects during import while still running them under a real `streamlit run`.
     try:
         import streamlit as st
 
         from automation.dashboard.components.kafka_source import collect_alerts
 
         st.header("Supply-Chain Automation Log")
-        alerts = collect_alerts()
-        st.table(render(events=alerts))
+
+        @st.fragment(run_every="5s")
+        def _live_log() -> None:
+            alerts = collect_alerts()
+            st.table(render(events=alerts))
+
+        _live_log()
     except Exception:  # pragma: no cover - importable without a running Streamlit server
         pass
