@@ -21,13 +21,15 @@ def build_reorder(alert: dict, target_stock: int = DEFAULT_TARGET_STOCK) -> dict
     Returns:
         dict with `sku`, `qty` (units to order to reach target), and email fields.
     """
+    from libs.scf_common.config import settings
+
     sku = alert["item_id"]
     stock = int(alert["stock_level"])
     qty = max(target_stock - stock, 0)
     return {
         "sku": sku,
         "qty": qty,
-        "supplier_email": "supplier@example.com",
+        "supplier_email": settings.automation.supplier_email,
         "subject": f"[AUTO-REORDER] SKU {sku} low stock ({stock} units)",
         "body": (
             f"Automated reorder triggered for SKU {sku}. Current stock {stock} is below threshold "
