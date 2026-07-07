@@ -1,0 +1,64 @@
+{
+  "name": "Automated Reorder (simulated email, zero-cost default)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reorder",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "reorder-webhook"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "sku", "value": "={{$json[\"sku\"]}}" },
+            { "name": "qty", "value": "={{$json[\"qty\"]}}" },
+            { "name": "supplier_email", "value": "={{$json[\"supplier_email\"]}}" },
+            { "name": "subject", "value": "={{$json[\"subject\"]}}" },
+            { "name": "body", "value": "={{$json[\"body\"]}}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Shape Purchase Order",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "SIMULATED_EMAIL_SENT — zero-cost default. Swap this NoOp node for an Email Send node + free SMTP (e.g. Gmail) if a real supplier email is desired; see docs/reference/cost-and-licensing.md."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Simulated Email (NoOp Log)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Shape Purchase Order", "type": "main", "index": 0 }]]
+    },
+    "Shape Purchase Order": {
+      "main": [[{ "node": "Simulated Email (NoOp Log)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "automated-reorder-workflow"
+}
