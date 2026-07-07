@@ -22,8 +22,6 @@ import urllib.request
 
 import pytest
 
-pytest.importorskip("testcontainers")
-
 
 def _wait_http(url: str, timeout: float = 60.0) -> None:
     """Poll a URL until it returns 200, or raise after ``timeout`` seconds."""
@@ -43,6 +41,7 @@ def _wait_http(url: str, timeout: float = 60.0) -> None:
 @pytest.fixture(scope="module")
 def kafka_bootstrap() -> str:
     """Start a KRaft Kafka container; yield its host bootstrap address."""
+    pytest.importorskip("testcontainers")
     from testcontainers.kafka import KafkaContainer
 
     with KafkaContainer("confluentinc/cp-kafka:7.6.1") as kafka:
