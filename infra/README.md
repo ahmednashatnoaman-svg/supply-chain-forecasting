@@ -199,9 +199,9 @@ graph LR
     DN --- V2
 
     subgraph Medallion Dirs
-        B[/data/bronze]
-        S[/data/silver]
-        G[/data/gold]
+        B["/data/bronze"]
+        S["/data/silver"]
+        G["/data/gold"]
     end
 
     DN --- B & S & G
