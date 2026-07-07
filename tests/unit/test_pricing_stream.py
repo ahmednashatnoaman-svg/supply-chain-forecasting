@@ -114,16 +114,17 @@ def test_price_row_reads_forecast_and_elasticity_from_redis(fake_redis):
 
     assert result["item_id"] == 10
     assert result["baseline"] == 100.0
-    assert (
-        result["new_price"] == 100.0
-    )  # model unavailable -> velocity-only path -> no surge signal
+    # model unavailable -> no surge signal -> dynamic_price returns the base unchanged, but
+    # present_price ALWAYS applies charm rounding (even to an unchanged price) by design -- see
+    # test_present_price_unchanged_has_no_anchor in test_psychology.py. 100.00 -> 99.99.
+    assert result["new_price"] == 99.99
     assert result["surge_prob"] == 0.0
 
 
 def test_price_row_missing_forecast_defaults_to_zero_baseline(fake_redis):
     result = price_row(10, 500.0, 50.0, 10.0, 100.0, fake_redis, None)
     assert result["baseline"] == 0.0
-    assert result["new_price"] == 100.0  # dynamic_price is safe when baseline <= 0
+    assert result["new_price"] == 99.99  # dynamic_price safe at baseline<=0; still charm-rounded
 
 
 def test_price_row_with_real_model_can_signal_surge(fake_redis):
@@ -131,7 +132,9 @@ def test_price_row_with_real_model_can_signal_surge(fake_redis):
     model = SurgeLSTM()
     result = price_row(10, 500.0, 400.0, 100.0, 100.0, fake_redis, model)
     assert 0.0 <= result["surge_prob"] <= 1.0
-    assert result["new_price"] >= 100.0  # never prices below base
+    # The model is randomly initialized, so surge may or may not trigger -- bound the charm-rounded
+    # result to the valid range either way: [99.99 no-surge, ~124.99 max +25% uplift charm-rounded].
+    assert 95.0 <= result["new_price"] <= 125.0
 
 
 def test_check_low_stock_alert_fires_below_threshold(fake_redis):
