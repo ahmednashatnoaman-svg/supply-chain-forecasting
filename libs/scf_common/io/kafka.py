@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from io import BytesIO
-
 from confluent_kafka import Consumer, Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer, AvroSerializer
