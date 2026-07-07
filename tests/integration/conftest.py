@@ -93,10 +93,6 @@ def kafka_env(monkeypatch, kafka_bootstrap: str, schema_registry_url: str):
     import libs.scf_common.config as cfg
 
     monkeypatch.setattr(cfg, "settings", get_settings())
-    # The io.kafka module imports `settings` by name; patch the attribute there too.
-    import libs.scf_common.io.kafka as iok
-
-    monkeypatch.setattr(iok, "settings", get_settings())
     yield {"bootstrap": kafka_bootstrap, "schema_registry": schema_registry_url}
 
 
