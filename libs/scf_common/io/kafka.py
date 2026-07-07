@@ -1,30 +1,25 @@
-"""Kafka Avro producer/consumer helpers backed by Schema Registry.
-
-Thin wrappers over confluent-kafka so layers never wire serializers by hand. Schemas are loaded from
-the repo `contracts/avro/` directory by filename.
-"""
-
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from io import BytesIO
 
 from confluent_kafka import Consumer, Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer, AvroSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
-from libs.scf_common.config import settings
-
-_CONTRACTS_DIR = Path(__file__).resolve().parents[3] / "contracts" / "avro"
+from libs.scf_common.config import get_settings
 
 
-def load_schema(avsc_filename: str) -> str:
-    """Load an Avro schema string from contracts/avro/<filename>."""
-    return (_CONTRACTS_DIR / avsc_filename).read_text()
+def load_schema(schema_file: str) -> dict:
+    """Load Avro schema from contracts/avro directory."""
+    from pathlib import Path
+
+    schema_path = Path(__file__).resolve().parents[3] / "contracts" / "avro" / schema_file
+    return schema_path.read_text()
 
 
 def _sr_client() -> SchemaRegistryClient:
+    settings = get_settings()
     return SchemaRegistryClient({"url": settings.kafka.schema_registry_url})
 
 
@@ -46,6 +41,7 @@ class AvroKafkaProducer:
     }
 
     def __init__(self, topic: str, schema_file: str, key_field: str = "item_id"):
+        settings = get_settings()
         self.topic = topic
         self.key_field = key_field
         self._producer = Producer(
@@ -78,6 +74,7 @@ class AvroKafkaConsumer:
     """
 
     def __init__(self, topic: str, schema_file: str, group_id: str):
+        settings = get_settings()
         self.topic = topic
         self._consumer = Consumer(
             {
@@ -88,11 +85,11 @@ class AvroKafkaConsumer:
             }
         )
         self._consumer.subscribe([topic])
-        self._deserializer = AvroDeserializer(_sr_client(), load_schema(schema_file))
+        self._deserializer = AvroDeserializer(_sr_client())
 
     def poll(self, timeout: float = 1.0) -> dict | None:
         msg = self._consumer.poll(timeout)
-        if msg is None or msg.error():
+        if msg is None:
             return None
         ctx = SerializationContext(self.topic, MessageField.VALUE)
         return self._deserializer(msg.value(), ctx)
@@ -103,7 +100,3 @@ class AvroKafkaConsumer:
 
     def close(self) -> None:
         self._consumer.close()
-
-
-def _dumps(record: dict) -> bytes:
-    return json.dumps(record).encode()

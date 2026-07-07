@@ -63,7 +63,7 @@ def schema_registry_url() -> str:
 
     apicurio = DockerContainer("apicurio/apicurio-registry:latest")
     # Default storage is in-memory (no APICURIO_STORAGE_KIND set) -- no Kafka dependency.
-    apicurio.with_exposed_port(8080)
+    apicurio.with_exposed_ports(8080)
     apicurio.start()
     try:
         wait_for_logs(apicurio, ".*Started.*", timeout=90)
