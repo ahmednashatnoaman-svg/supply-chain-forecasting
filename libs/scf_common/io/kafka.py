@@ -66,7 +66,12 @@ class AvroKafkaProducer:
 
 
 class AvroKafkaConsumer:
-    """Consume Avro records from a topic as plain dicts."""
+    """Consume Avro records from a topic as plain dicts.
+
+    Manual offset commit (kafka-playbook §2): ``enable.auto.commit=false`` by default, and callers
+    commit explicitly via :meth:`commit` only after downstream writes succeed (at-least-once safe
+    because the processing functions are idempotent).
+    """
 
     def __init__(self, topic: str, schema_file: str, group_id: str):
         self.topic = topic
@@ -75,6 +80,7 @@ class AvroKafkaConsumer:
                 "bootstrap.servers": settings.kafka.bootstrap_servers,
                 "group.id": group_id,
                 "auto.offset.reset": "earliest",
+                "enable.auto.commit": False,
             }
         )
         self._consumer.subscribe([topic])
@@ -86,6 +92,10 @@ class AvroKafkaConsumer:
             return None
         ctx = SerializationContext(self.topic, MessageField.VALUE)
         return self._deserializer(msg.value(), ctx)
+
+    def commit(self) -> None:
+        """Commit the current offsets synchronously (call after successful processing)."""
+        self._consumer.commit(asynchronous=False)
 
     def close(self) -> None:
         self._consumer.close()
