@@ -44,11 +44,21 @@ def render(source=None, skus: list[str] | None = None, window: str = DEFAULT_WIN
     return fig
 
 
-if __name__ != "__main__":  # rendered by Streamlit
+if __name__ == "__main__":  # rendered by Streamlit
+    # Streamlit execs every script it runs -- both app.py and each pages/*.py -- with
+    # __name__ == "__main__" (verified against the installed streamlit; there is no dotted
+    # module name at runtime). Unit tests import this file as a real submodule instead
+    # (`automation.dashboard.pages.1_forecast_vs_actual`), so this guard skips the live-rendering
+    # side effects during import while still running them under a real `streamlit run`.
     try:
         import streamlit as st
 
         st.header("Forecast vs Actual")
-        st.plotly_chart(render(), use_container_width=True)
+
+        @st.fragment(run_every="5s")
+        def _live_chart() -> None:
+            st.plotly_chart(render(), use_container_width=True)
+
+        _live_chart()
     except Exception:  # pragma: no cover - importable without a running Streamlit server
         pass
