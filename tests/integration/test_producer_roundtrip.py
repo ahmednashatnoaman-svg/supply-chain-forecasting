@@ -1,18 +1,59 @@
-"""Integration test: Kafka Avro producer round-trip (Hatem plan Task 3). Needs Kafka + SR containers."""
+"""Integration test: Kafka Avro producer round-trip (Hatem plan Task 3, exec Task 3).
+
+Produce N contract-conformant records from an in-memory test split via ``run(...)``, then consume
+with ``AvroKafkaConsumer`` and assert the count and per-partition timestamp ordering are preserved.
+Needs real Kafka + Apicurio Registry (testcontainers) -- see tests/integration/conftest.py.
+"""
+
+from __future__ import annotations
+
+import uuid
 
 import pytest
 
-pytest.importorskip("testcontainers")
+pytest.importorskip("confluent_kafka")
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.skip(
-    reason="Scaffold — implement with testcontainers Kafka + schema registry per hatem-plan Task 3"
-)
-def test_producer_roundtrip_preserves_order_and_count():
-    """
-    Plan:
-      1. Start Kafka + Schema Registry via testcontainers.
-      2. Produce N contract-conformant records to live_web_traffic.
-      3. Consume and assert count == N and first/last event_time ordering preserved.
-    """
+def test_producer_roundtrip_preserves_order_and_count(kafka_env, live_topic, make_row):
+    from ingestion.generator.traffic_generator import run
+    from libs.scf_common.io.kafka import AvroKafkaConsumer
+
+    n = 50
+    rows = [make_row(i) for i in range(n)]
+    produced = run(rows=rows, speed=100, surge=None)
+    assert produced == n
+
+    consumer = AvroKafkaConsumer(
+        live_topic, "live_web_traffic.avsc", group_id=f"verifier-{uuid.uuid4().hex[:8]}"
+    )
+    received: list[dict] = []
+    try:
+        deadline = _now_plus(60)
+        while len(received) < n and _now() < deadline:
+            rec = consumer.poll(1.0)
+            if rec is not None:
+                received.append(rec)
+    finally:
+        consumer.close()
+
+    assert len(received) == n, f"expected {n} records, got {len(received)}"
+    # event_time is non-decreasing across the consumed sequence (ordering preserved within
+    # each partition; with 6 partition keys across 6 partitions a fully-global sort is not
+    # guaranteed, so assert per-partition monotonicity instead).
+    by_partition: dict[str, list[int]] = {}
+    for rec in received:
+        by_partition.setdefault(str(rec["item_id"]), []).append(rec["event_time"])
+    for key, times in by_partition.items():
+        assert times == sorted(times), f"event_time not ordered for item_id={key}: {times}"
+    assert received[0]["event_time"] <= received[-1]["event_time"]
+
+
+def _now() -> float:
+    import time
+
+    return time.time()
+
+
+def _now_plus(seconds: float) -> float:
+    return _now() + seconds

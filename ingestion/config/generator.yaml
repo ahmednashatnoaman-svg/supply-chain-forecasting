@@ -1,6 +1,10 @@
-# Traffic generator configuration (Hatem). Loaded by traffic_generator.
+# Traffic generator configuration (Hatem). Loaded by traffic_generator.run_from_config().
+# Single source of producer config (decision D-E): speed, surges, dataset path, split paths.
 dataset:
-  events_csv: data/raw/events.csv
+  # Pre-split CSVs produced by `python -m ingestion.generator.split` (after download_data.sh).
+  events_csv: data/raw/events.csv        # raw full source for the split CLI
+  train_csv: data/raw/events_train.csv   # 80% train split -> HDFS bronze (Emad's batch brain)
+  test_csv: data/raw/events_test.csv     # 20% test split -> Kafka live stream (producer reads this)
   # Fraction of the dataset reserved for the live stream (rest is history for HDFS/batch).
   live_fraction: 0.2
 
@@ -8,7 +12,8 @@ playback:
   speed: 100            # base playback multiplier (100x real time)
   loop: false
 
-# Synthetic surge windows: (start_iso, end_iso, speed_multiplier). Simulates viral buying waves.
+# Synthetic surge windows keyed on EVENT time (the dataset's own 2015-09 timestamps, not wall-clock).
+# SurgeSchedule expects (start_iso, end_iso, multiplier); multiplier > 1 shrinks inter-event sleep.
 surges:
   - start: "2015-09-15T12:00:00"
     end:   "2015-09-15T13:00:00"

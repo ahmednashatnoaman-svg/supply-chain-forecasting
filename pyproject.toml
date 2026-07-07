@@ -33,6 +33,7 @@ dependencies = [
     # requires >=5. Capped at <6 until streamlit explicitly tests 6.x.
     "protobuf>=5.27,<6",
     "structlog==24.2.0",
+    "pyyaml==6.0.1",
 ]
 
 [project.optional-dependencies]
