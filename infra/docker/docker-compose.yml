@@ -13,6 +13,7 @@ volumes:
   hdfs-data:
   grafana-data:
   airflow-db:
+  mlflow-data:
 
 services:
   # ---------------- Kafka + Schema Registry ----------------
@@ -215,6 +216,7 @@ services:
     profiles: [full]
     networks: [scf-net]
     ports: ["5000:5000"]
+    volumes: ["mlflow-data:/mlflow"]   # persist DB + artifacts; fixes sqlite3 'unable to open' error
     command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000",
               "--backend-store-uri", "sqlite:////mlflow/mlflow.db",
               "--default-artifact-root", "/mlflow/artifacts"]
@@ -241,7 +243,7 @@ services:
     profiles: [full]
     depends_on: [prometheus]
     networks: [scf-net]
-    ports: ["3000:3000"]
+    ports: ["3001:3000"]   # 3000 remapped: host port 3000 already in use on this machine
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "true"
