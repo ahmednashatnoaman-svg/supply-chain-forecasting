@@ -32,9 +32,40 @@ def cooccurrence_edges(transactions: DataFrame) -> DataFrame:
 
 
 def build_graph(transactions: DataFrame) -> DataFrame:
-    """Return the elasticity edge table (thin wrapper; PageRank/communities added by owner).
+    """Construct a GraphFrame, run PageRank & LabelPropagation, and return the gold table.
 
-    TODO(emad-plan Task 5): construct a GraphFrame from vertices+edges, run `pageRank` and
-    `labelPropagation`, and join community ids to produce the product_graph gold table.
+    Returns:
+        DataFrame with columns [item_id, related_item_id, elasticity_weight, community, pagerank]
     """
-    return cooccurrence_edges(transactions)
+    edges = cooccurrence_edges(transactions)
+
+    # Vertices must have an 'id' column
+    vertices = (
+        edges.select(F.col("item_id").alias("id"))
+        .union(edges.select(F.col("related_item_id").alias("id")))
+        .distinct()
+    )
+
+    # Rename edges to src and dst for GraphFrame
+    gf_edges = edges.select(
+        F.col("item_id").alias("src"), F.col("related_item_id").alias("dst"), "elasticity_weight"
+    )
+
+    from graphframes import GraphFrame
+
+    g = GraphFrame(vertices, gf_edges)
+
+    # Run PageRank (measure of product importance)
+    pr = g.pageRank(resetProbability=0.15, maxIter=5)
+
+    # Run Label Propagation (community detection)
+    communities = g.labelPropagation(maxIter=5)
+
+    # Join results back to edges
+    res = edges.join(
+        communities.select(F.col("id").alias("item_id"), F.col("label").alias("community")),
+        "item_id",
+        "left",
+    ).join(pr.vertices.select(F.col("id").alias("item_id"), F.col("pagerank")), "item_id", "left")
+
+    return res

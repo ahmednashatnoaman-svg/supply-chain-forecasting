@@ -54,9 +54,9 @@ These are the **only** integration surfaces. Changing one is a PR reviewed by bo
 |---|---|---|---|
 | **M0** | Contracts + Walking Skeleton | `contracts/` frozen; `make up` runs; one fake event flows end-to-end through stubs and lands a stub price on `automated_pricing_updates`; `make smoke` green | All (Nagy leads infra, Nashat leads contracts) |
 | **M1** | Ingestion real | Traffic generator replays Retailrocket with surges; consumer verifier passes; data staged to HDFS bronze | Hatem (+Nagy) |
-| **M2** | Batch brain | ETL→features→MLlib forecast→GraphFrames elasticity→Redis publish; Airflow DAG green; GE data-quality gates pass | Emad |
+| **M2** | Batch brain (DONE) | ETL→features→MLlib forecast→GraphFrames elasticity→Redis publish; Airflow DAG green; GE data-quality gates pass | Emad |
 | **M3** | Speed engine | Structured Streaming computes velocity, LSTM surge flag, pricing formula reads Redis, emits updates + alerts | Nashat |
-| **M4** | Serving + automation | Streamlit dashboard live; n8n reorder on low-stock alert | Ziad |
+| **M4** | Serving + automation (DONE) | Streamlit dashboard live; n8n reorder on low-stock alert | Ziad |
 | **M5** | Production hardening | Prometheus/Grafana dashboards; CI green on all layers; runbooks; Helm/Terraform stubs; load/e2e tests | Nagy + Nashat (+all) |
 
 Members M1–M4 run **in parallel** against M0 mocks; integration happens continuously at the contracts.

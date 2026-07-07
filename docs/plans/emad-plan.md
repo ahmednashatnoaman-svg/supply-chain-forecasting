@@ -36,7 +36,7 @@ Inherits [master §Global Constraints](../master-plan.md#global-constraints). Al
 - Produces: `def clean_events(df: DataFrame) -> DataFrame` — drops nulls/dupes, casts `event_time` to
   timestamp, filters events to `{view,addtocart,transaction}`; writes silver.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 ```python
 # tests/unit/test_clean_events.py
 from chispa import assert_df_equality
@@ -49,10 +49,10 @@ def test_drops_dupes_and_casts(spark):
     assert out.count() == 1                       # dedup
     assert dict(out.dtypes)["event_time"] == "timestamp"
 ```
-- [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement `clean_events`** (dropDuplicates, `to_timestamp`, filter, select contract cols).
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(batch): bronze→silver event cleansing`.
+- [x] **Step 2: Run, expect FAIL.**
+- [x] **Step 3: Implement `clean_events`** (dropDuplicates, `to_timestamp`, filter, select contract cols).
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(batch): bronze→silver event cleansing`.
 
 ### Task 2: Rolling 7d/30d velocity features → gold
 
@@ -60,23 +60,23 @@ def test_drops_dupes_and_casts(spark):
 **Interfaces:** Produces `def build_features(events: DataFrame) -> DataFrame` with columns
 `item_id, ds, velocity_7d, velocity_30d, dow, is_weekend` (one row per SKU per day).
 
-- [ ] **Step 1: Failing test** — feed 40 days of one SKU's transactions; assert `velocity_7d` on the last
+- [x] **Step 1: Failing test** — feed 40 days of one SKU's transactions; assert `velocity_7d` on the last
   day equals the mean daily count over the trailing 7 days (compute expected in-test).
-- [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement** with a Window partitioned by `item_id` ordered by `ds`, `rowsBetween(-6,0)`
+- [x] **Step 2: Run, expect FAIL.**
+- [x] **Step 3: Implement** with a Window partitioned by `item_id` ordered by `ds`, `rowsBetween(-6,0)`
   and `-29,0` averages; add calendar features.
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(batch): rolling velocity feature engineering`.
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(batch): rolling velocity feature engineering`.
 
 ### Task 3: Great Expectations silver quality gate
 
 **Files:** Create `tests/data_quality/test_silver_expectations.py` + `batch/etl/expectations.py`
 **Interfaces:** Produces `def validate_silver(df) -> bool` (raises on failure; used in DAG).
 
-- [ ] **Step 1: Failing test** — expect `event_time` not null, `item_id` > 0, `event` in allowed set;
+- [x] **Step 1: Failing test** — expect `event_time` not null, `item_id` > 0, `event` in allowed set;
   feed a bad frame → expect raise.
-- [ ] **Step 2..4:** implement GE suite; PASS on good frame, raise on bad.
-- [ ] **Step 5: Commit** — `feat(batch): great-expectations silver gate`.
+- [x] **Step 2..4:** implement GE suite; PASS on good frame, raise on bad.
+- [x] **Step 5: Commit** — `feat(batch): great-expectations silver gate`.
 
 ### Task 4: MLlib GBT demand forecast + MLflow registry
 
@@ -84,12 +84,12 @@ def test_drops_dupes_and_casts(spark):
 **Interfaces:** Produces `def train_forecast(features: DataFrame) -> (Model, DataFrame)` where the
 DataFrame has `item_id, forecast_demand` matching `contracts/models/forecast_output.json`; logs to MLflow.
 
-- [ ] **Step 1: Failing test** — train on synthetic linear-trend features; assert output schema matches
+- [x] **Step 1: Failing test** — train on synthetic linear-trend features; assert output schema matches
   the contract and predictions are finite & non-negative.
-- [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement** `VectorAssembler` + `GBTRegressor`, fit, predict, clamp ≥ 0, `mlflow.spark.log_model`.
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(batch): mllib GBT forecast + mlflow`.
+- [x] **Step 2: Run, expect FAIL.**
+- [x] **Step 3: Implement** `VectorAssembler` + `GBTRegressor`, fit, predict, clamp ≥ 0, `mlflow.spark.log_model`.
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(batch): mllib GBT forecast + mlflow`.
 
 ### Task 5: GraphFrames cross-elasticity (PageRank + communities)
 
@@ -97,13 +97,13 @@ DataFrame has `item_id, forecast_demand` matching `contracts/models/forecast_out
 **Interfaces:** Produces `def build_graph(transactions: DataFrame) -> DataFrame` returning edges
 `item_id, related_item_id, elasticity_weight` and `def communities(g) -> DataFrame` (`item_id, community`).
 
-- [ ] **Step 1: Failing test** — items co-purchased in the same basket get an edge with weight > 0;
+- [x] **Step 1: Failing test** — items co-purchased in the same basket get an edge with weight > 0;
   unrelated items have none.
-- [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement** basket self-join → co-occurrence counts → GraphFrame; run `pageRank` and
+- [x] **Step 2: Run, expect FAIL.**
+- [x] **Step 3: Implement** basket self-join → co-occurrence counts → GraphFrame; run `pageRank` and
   `labelPropagation`; normalize weights.
-- [ ] **Step 4: Run, expect PASS.**
-- [ ] **Step 5: Commit** — `feat(batch): graphframes cross-elasticity + communities`.
+- [x] **Step 4: Run, expect PASS.**
+- [x] **Step 5: Commit** — `feat(batch): graphframes cross-elasticity + communities`.
 
 ### Task 6: Publish gold → Redis (integration)
 
@@ -113,10 +113,10 @@ DataFrame has `item_id, forecast_demand` matching `contracts/models/forecast_out
 - Produces: Redis keys `forecast:{sku}`, `graph:elasticity:{sku}`, `graph:community:{sku}` per
   `contracts/redis/redis-keys.md` — **exactly what Nashat's pricing engine reads.**
 
-- [ ] **Step 1: Failing test** — with testcontainers Redis, publish a small gold set then assert
+- [x] **Step 1: Failing test** — with testcontainers Redis, publish a small gold set then assert
   `redis.get("forecast:10")` equals the written value and elasticity is a JSON list.
-- [ ] **Step 2..4:** implement atomic per-SKU pipeline writes; PASS.
-- [ ] **Step 5: Commit** — `feat(batch): publish forecasts + elasticity to redis`.
+- [x] **Step 2..4:** implement atomic per-SKU pipeline writes; PASS.
+- [x] **Step 5: Commit** — `feat(batch): publish forecasts + elasticity to redis`.
 
 ### Task 7: Airflow nightly DAG wiring
 
@@ -124,6 +124,6 @@ DataFrame has `item_id, forecast_demand` matching `contracts/models/forecast_out
 Test `tests/unit/test_dag_import.py`
 **Interfaces:** Produces DAG `nightly_forecast` chaining tasks 1→2→3→4→5→6.
 
-- [ ] **Step 1: Failing test** — `DagBag().import_errors == {}` and the DAG has the 6 tasks in order.
-- [ ] **Step 2..4:** implement DAG + a `run_batch_once` local runner (used by `make batch`); PASS.
-- [ ] **Step 5: Commit** — `feat(batch): airflow nightly dag + local runner`.
+- [x] **Step 1: Failing test** — `DagBag().import_errors == {}` and the DAG has the 6 tasks in order.
+- [x] **Step 2..4:** implement DAG + a `run_batch_once` local runner (used by `make batch`); PASS.
+- [x] **Step 5: Commit** — `feat(batch): airflow nightly dag + local runner`.
