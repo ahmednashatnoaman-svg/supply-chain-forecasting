@@ -11,6 +11,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from libs.scf_common.contracts import Topics
 from libs.scf_common.observability import ERRORS_TOTAL, RECORDS_PROCESSED, get_logger
@@ -60,7 +61,15 @@ def verify(expected_count: int, timeout_s: int = 30) -> VerifyReport:
             if rec is None:
                 continue
             try:
-                event_time_ms = int(rec["event_time"])
+                raw_event_time = rec["event_time"]
+                # The contract's `event_time` is Avro logical type timestamp-millis, which the
+                # schema-registry-aware deserializer decodes to a datetime; guard the raw-int case
+                # too in case a caller ever bypasses that deserializer.
+                event_time_ms = (
+                    int(raw_event_time.timestamp() * 1000)
+                    if isinstance(raw_event_time, datetime)
+                    else int(raw_event_time)
+                )
                 lag = int(time.time() * 1000) - event_time_ms
                 if lag > max_lag_ms:
                     max_lag_ms = lag
