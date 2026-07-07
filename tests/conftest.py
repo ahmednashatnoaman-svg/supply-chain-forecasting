@@ -18,6 +18,13 @@ def spark():
         .master("local[2]")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.ui.enabled", "false")
+        # spark-avro (from_avro, e.g. parse_events) and spark-sql-kafka (readStream/read.format
+        # "kafka", e.g. the walking-skeleton e2e test) are both needed here -- production code gets
+        # these via get_spark()'s _PACKAGES, but tests use this lighter fixture instead.
+        .config(
+            "spark.jars.packages",
+            "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.apache.spark:spark-avro_2.12:3.5.1",
+        )
         .getOrCreate()
     )
     yield session
