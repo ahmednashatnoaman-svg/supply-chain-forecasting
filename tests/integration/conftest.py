@@ -59,18 +59,18 @@ def schema_registry_url() -> str:
     storage is sufficient and sidesteps the cross-container networking entirely.
     """
     from testcontainers.core.container import DockerContainer
-    from testcontainers.core.waiting_utils import wait_for_logs
 
     apicurio = DockerContainer("apicurio/apicurio-registry:latest")
     # Default storage is in-memory (no APICURIO_STORAGE_KIND set) -- no Kafka dependency.
     apicurio.with_exposed_ports(8080)
     apicurio.start()
     try:
-        wait_for_logs(apicurio, ".*Started.*", timeout=90)
         host = apicurio.get_container_host_ip()
         port = int(apicurio.get_exposed_port(8080))
         ccompat = f"http://{host}:{port}/apis/ccompat/v6"
-        _wait_http(ccompat, timeout=60)
+        # Apicurio image log text has changed across releases, so poll the actual ccompat
+        # endpoint instead of waiting for a brittle startup log substring.
+        _wait_http(f"{ccompat}/subjects", timeout=90)
         yield ccompat
     finally:
         apicurio.stop()
