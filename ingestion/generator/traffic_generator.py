@@ -128,9 +128,7 @@ def load_config(path: Path = _CONFIG_PATH) -> dict:
 
 def build_surge(config: dict) -> SurgeSchedule:
     """Build a SurgeSchedule from the ``surges`` list in generator.yaml (D-E)."""
-    windows = [
-        (w["start"], w["end"], float(w["multiplier"])) for w in (config.get("surges") or [])
-    ]
+    windows = [(w["start"], w["end"], float(w["multiplier"])) for w in (config.get("surges") or [])]
     return SurgeSchedule(windows=windows)
 
 
@@ -160,9 +158,7 @@ def _cli() -> None:  # pragma: no cover
     p = argparse.ArgumentParser(description="Retailrocket -> Kafka traffic generator")
     p.add_argument("--speed", type=int, default=None, help="playback speed multiplier")
     p.add_argument("--limit", type=int, default=None, help="max events to produce")
-    p.add_argument(
-        "--config", type=Path, default=_CONFIG_PATH, help="path to generator.yaml"
-    )
+    p.add_argument("--config", type=Path, default=_CONFIG_PATH, help="path to generator.yaml")
     args = p.parse_args()
     run_from_config(config_path=args.config, limit=args.limit, speed_override=args.speed)
 

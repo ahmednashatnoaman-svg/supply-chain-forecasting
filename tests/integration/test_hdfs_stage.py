@@ -59,9 +59,7 @@ def hdfs_stack():
     _wait_hdfs_ready(timeout=120)
     yield
     # Only the test's own scf-it containers are removed -- the dev stack is untouched.
-    subprocess.run(
-        COMPOSE + ["rm", "-fs", "namenode", "datanode"], check=False, cwd=str(ROOT)
-    )
+    subprocess.run(COMPOSE + ["rm", "-fs", "namenode", "datanode"], check=False, cwd=str(ROOT))
 
 
 def _wait_hdfs_ready(timeout: float) -> None:

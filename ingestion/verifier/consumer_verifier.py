@@ -93,6 +93,4 @@ if __name__ == "__main__":  # pragma: no cover
     p.add_argument("--timeout", type=int, default=30, help="poll deadline seconds")
     args = p.parse_args()
     report = verify(expected_count=args.expected, timeout_s=args.timeout)
-    print(
-        f"received={report.received} missing={report.missing} max_lag_ms={report.max_lag_ms}"
-    )
+    print(f"received={report.received} missing={report.missing} max_lag_ms={report.max_lag_ms}")

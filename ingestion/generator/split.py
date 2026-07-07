@@ -11,9 +11,7 @@ The ``__main__`` CLI does the pandas CSV I/O.
 from __future__ import annotations
 
 
-def split_events(
-    rows: list[dict], train_fraction: float = 0.8
-) -> tuple[list[dict], list[dict]]:
+def split_events(rows: list[dict], train_fraction: float = 0.8) -> tuple[list[dict], list[dict]]:
     """Split rows chronologically into (train, test).
 
     Args:
@@ -39,7 +37,9 @@ def _cli() -> None:  # pragma: no cover
 
     p = argparse.ArgumentParser(description="Chronological 80/20 train/test split of events.csv")
     p.add_argument(
-        "--input", default="data/raw/events.csv", help="source events.csv (timestamp-sorted is fine)"
+        "--input",
+        default="data/raw/events.csv",
+        help="source events.csv (timestamp-sorted is fine)",
     )
     p.add_argument(
         "--train-fraction", type=float, default=0.8, help="fraction of rows going to train"
