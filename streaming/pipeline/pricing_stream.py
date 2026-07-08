@@ -33,7 +33,9 @@ from libs.scf_common.io import get_redis, get_spark
 from libs.scf_common.io.kafka import load_schema
 from libs.scf_common.observability import (
     ERRORS_TOTAL,
+    LOW_STOCK_ALERTS_TOTAL,
     RECORDS_PROCESSED,
+    SURGE_EVENTS_TOTAL,
     get_logger,
     serve_metrics,
 )
@@ -196,6 +198,8 @@ def price_row(
     is_surge = (
         surge_prob >= 0.5 and baseline > 0 and (velocity / baseline) > _PRICING_CFG.surge_threshold
     )
+    if is_surge:
+        SURGE_EVENTS_TOTAL.labels(component="streaming.pricing").inc()
 
     new_price = dynamic_price(base_price, velocity, baseline, elasticity, is_surge, _PRICING_CFG)
     presentation = present_price(new_price, base_price, _PSYCH_CFG)
@@ -221,6 +225,7 @@ def check_low_stock_alert(
     stock = int(inv_raw)
     if stock >= reorder_threshold:
         return None
+    LOW_STOCK_ALERTS_TOTAL.labels(component="streaming.pricing").inc()
     return {
         "item_id": int(item_id),
         "alert_type": "LOW_STOCK",
