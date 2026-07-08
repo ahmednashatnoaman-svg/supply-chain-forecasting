@@ -17,3 +17,9 @@ jobs:
           pip install -e ".[dev]"
       - name: Run fast unit + contract tests
         run: pytest -m unit -q
+      - name: Run data-quality (Great Expectations) suites
+        # Same `spark` fixture as the pyspark-backed unit tests above (in-memory synthetic
+        # DataFrames, no HDFS/real cluster needed) -- these had a `pytest.mark.data_quality`
+        # marker and a `make dq` target but were never actually wired into any CI workflow, so a
+        # broken silver-zone contract could merge unnoticed. Testing/validation audit follow-up.
+        run: pytest -m data_quality -q

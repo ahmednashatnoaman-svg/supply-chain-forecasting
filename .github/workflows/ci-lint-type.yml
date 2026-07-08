@@ -12,10 +12,10 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install lint/type tools only (fast)
-        run: pip install ruff==0.5.1 black==24.4.2 mypy==1.10.1
+        run: pip install ruff==0.5.1 black==24.4.2 mypy==1.10.1 types-redis==4.6.0.20241004
       - name: Ruff
         run: ruff check .
       - name: Black (check)
         run: black --check .
       - name: Mypy (libs + pure modules)
-        run: mypy libs streaming/pricing ingestion/generator/surge.py automation/n8n/alert_bridge.py || true
+        run: mypy libs streaming/pricing ingestion/generator/surge.py automation/n8n/alert_bridge.py

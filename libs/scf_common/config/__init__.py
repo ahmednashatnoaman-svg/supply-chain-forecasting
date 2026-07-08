@@ -52,6 +52,16 @@ class SparkSettings:
     )
     executor_memory: str = field(default_factory=lambda: _get("SPARK_EXECUTOR_MEMORY", "2g"))
     driver_memory: str = field(default_factory=lambda: _get("SPARK_DRIVER_MEMORY", "2g"))
+    # Kryo is the default for RDD-heavy jobs (GraphFrames self-joins in batch/graph/elasticity.py
+    # benefit most). Override to org.apache.spark.serializer.JavaSerializer via SPARK_SERIALIZER if
+    # your platform's Kryo build corrupts driver/executor task results (seen on Spark 3.5.1 arm64
+    # under Docker Desktop -- EOFException in KryoDeserializationStream.readObject on any collect(),
+    # reproducible with zero custom code).
+    serializer: str = field(
+        default_factory=lambda: _get(
+            "SPARK_SERIALIZER", "org.apache.spark.serializer.KryoSerializer"
+        )
+    )
 
 
 @dataclass(frozen=True)

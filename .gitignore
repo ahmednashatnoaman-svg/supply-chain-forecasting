@@ -47,6 +47,9 @@ mlartifacts/
 *.onnx
 !contracts/models/*.json
 
+# ---- Generated deliverables (not tracked) ----
+presentation/
+
 # ---- Data (never commit large datasets) ----
 data/raw/
 data/bronze/

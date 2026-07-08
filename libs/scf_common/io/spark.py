@@ -33,7 +33,7 @@ def get_spark(app_suffix: str = "") -> SparkSession:
         .config(
             "spark.sql.shuffle.partitions", "8"
         )  # local-friendly default; AQE coalesces further
-        .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+        .config("spark.serializer", settings.spark.serializer)
         # Adaptive Query Execution: right-sizes partitions and handles skew automatically — the
         # GraphFrames co-purchase self-join (batch/graph/elasticity.py) skews hard on popular SKUs.
         .config("spark.sql.adaptive.enabled", "true")

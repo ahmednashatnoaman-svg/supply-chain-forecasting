@@ -8,8 +8,8 @@ from confluent_kafka.serialization import MessageField, SerializationContext
 from libs.scf_common.config import get_settings
 
 
-def load_schema(schema_file: str) -> dict:
-    """Load Avro schema from contracts/avro directory."""
+def load_schema(schema_file: str) -> str:
+    """Load the raw Avro schema JSON text from contracts/avro directory (not parsed)."""
     from pathlib import Path
 
     schema_path = Path(__file__).resolve().parents[3] / "contracts" / "avro" / schema_file
