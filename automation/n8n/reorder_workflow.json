@@ -11,8 +11,25 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [150, 300],
       "webhookId": "reorder-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"headers\"][\"x-webhook-secret\"]}}",
+              "value2": "={{$env.WEBHOOK_SHARED_SECRET}}"
+            }
+          ]
+        }
+      },
+      "name": "Verify Shared Secret",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [350, 300],
+      "notes": "Security audit follow-up: alert_bridge.py sends X-Webhook-Secret when settings.automation.n8n_webhook_secret is set (empty by default -- no-op, matching the zero-config demo). Set N8N_WEBHOOK_SECRET (Python side) and WEBHOOK_SHARED_SECRET (this n8n container's env) to the same value before ever pointing this at a real downstream action. Header-path expression verified against a live n8n instance; if n8n's webhook item shape changes in a future version, re-verify with a real POST + the 'Verify Shared Secret' node's pin-data view."
     },
     {
       "parameters": {
@@ -30,7 +47,7 @@
       "name": "Shape Purchase Order",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
-      "position": [450, 300]
+      "position": [550, 220]
     },
     {
       "parameters": {
@@ -47,12 +64,30 @@
       "name": "Simulated Email (NoOp Log)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [750, 220]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [{ "name": "status", "value": "REJECTED_bad_or_missing_webhook_secret" }]
+        },
+        "options": {}
+      },
+      "name": "Unauthorized (NoOp)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [550, 400]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{ "node": "Shape Purchase Order", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Verify Shared Secret", "type": "main", "index": 0 }]]
+    },
+    "Verify Shared Secret": {
+      "main": [
+        [{ "node": "Shape Purchase Order", "type": "main", "index": 0 }],
+        [{ "node": "Unauthorized (NoOp)", "type": "main", "index": 0 }]
+      ]
     },
     "Shape Purchase Order": {
       "main": [[{ "node": "Simulated Email (NoOp Log)", "type": "main", "index": 0 }]]

@@ -34,7 +34,10 @@ services:
     profiles: [core, full]
     depends_on: [zookeeper]
     networks: [scf-net]
-    ports: ["9092:9092", "29092:29092"]
+    # Host-published ports bind to 127.0.0.1 only -- this is a single-laptop dev stack (see
+    # infra/README.md), not a LAN service; inter-container traffic goes over `scf-net` regardless
+    # of this binding, so it has zero effect on Spark/Kafka/etc. reaching each other by service name.
+    ports: ["127.0.0.1:9092:9092", "127.0.0.1:29092:29092"]
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -56,7 +59,7 @@ services:
     profiles: [core, full]
     depends_on: [kafka]
     networks: [scf-net]
-    ports: ["8081:8081"]
+    ports: ["127.0.0.1:8081:8081"]
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
@@ -73,7 +76,7 @@ services:
     profiles: [core, full]
     hostname: namenode
     networks: [scf-net]
-    ports: ["9870:9870", "9000:9000"]
+    ports: ["127.0.0.1:9870:9870", "127.0.0.1:9000:9000"]
     # Run as root so Docker volume (root-owned) can be formatted + written.
     # The starter.sh script generates XML config from env vars, then starts the namenode.
     # ENSURE_NAMENODE_DIR points to the 'current' subdirectory (only created after format)
@@ -117,7 +120,7 @@ services:
     image: apache/spark:3.5.1
     profiles: [core, full]
     networks: [scf-net]
-    ports: ["7077:7077", "8088:8080"]   # 8080 remapped: host port 8080 used by Oracle TNS Listener
+    ports: ["127.0.0.1:7077:7077", "127.0.0.1:8088:8080"]   # 8080 remapped: host port 8080 used by Oracle TNS Listener
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
     environment:
       SPARK_MASTER_HOST: spark-master
@@ -139,10 +142,14 @@ services:
     image: redis:7-alpine
     profiles: [core, full]
     networks: [scf-net]
-    ports: ["6379:6379"]
-    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:6379:6379"]
+    # `--requirepass ""` (the default when REDIS_PASSWORD is unset) means "no auth required",
+    # matching the zero-config local dev experience; set REDIS_PASSWORD in .env to actually enable
+    # auth end-to-end (previously the Python client would AUTH with it but the server never
+    # required one, which breaks the connection -- see libs/scf_common/config's RedisSettings).
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-}"]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -184,14 +191,15 @@ services:
       - |
         airflow db migrate
         airflow users create --username admin --firstname Admin --lastname User \
-          --role Admin --email admin@example.com --password admin || true
+          --role Admin --email admin@example.com \
+          --password "${AIRFLOW_ADMIN_PASSWORD:-admin}" || true
 
   airflow-webserver:
     image: apache/airflow:2.9.2
     profiles: [full]
     depends_on: [airflow-init]
     networks: [scf-net]
-    ports: ["8082:8080"]   # 8080 already used by spark-master's UI
+    ports: ["127.0.0.1:8082:8080"]   # 8080 already used by spark-master's UI
     environment: *airflow-env
     volumes: ["../../batch/airflow_dags:/opt/airflow/dags"]
     command: ["webserver"]
@@ -215,7 +223,7 @@ services:
     image: ghcr.io/mlflow/mlflow:v2.14.1
     profiles: [full]
     networks: [scf-net]
-    ports: ["5000:5000"]
+    ports: ["127.0.0.1:5000:5000"]
     volumes: ["mlflow-data:/mlflow"]   # persist DB + artifacts; fixes sqlite3 'unable to open' error
     command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000",
               "--backend-store-uri", "sqlite:////mlflow/mlflow.db",
@@ -226,16 +234,29 @@ services:
     image: n8nio/n8n:latest
     profiles: [full]
     networks: [scf-net]
-    ports: ["5678:5678"]
+    ports: ["127.0.0.1:5678:5678"]
     environment:
       N8N_SECURE_COOKIE: "false"
+      # n8n's Function/Code nodes run arbitrary JS and its HTTP node can reach every other
+      # container on scf-net -- basic auth is a real gate, not box-checking, even behind the
+      # 127.0.0.1 binding above. `:?` (hard-require, no fallback) was tried here but `docker
+      # compose config` interpolates every service's env vars regardless of --profile filtering
+      # (profile exclusion happens after parsing), so it broke `--profile core up` too even though
+      # n8n itself is profiles:[full]-only. Soft default + a loud comment instead: change these in
+      # .env before ever running `--profile full` on a shared or internet-reachable machine.
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: "${N8N_BASIC_AUTH_USER:-admin}"
+      N8N_BASIC_AUTH_PASSWORD: "${N8N_BASIC_AUTH_PASSWORD:-changeme}"
+      # Read by reorder_workflow.json's "Verify Shared Secret" node; must match this app's
+      # N8N_WEBHOOK_SECRET (empty in both by default -- the workflow ships inactive/simulated).
+      WEBHOOK_SHARED_SECRET: "${N8N_WEBHOOK_SECRET:-}"
 
   # ---------------- Monitoring ----------------
   prometheus:
     image: prom/prometheus:v2.53.0
     profiles: [full]
     networks: [scf-net]
-    ports: ["9090:9090"]
+    ports: ["127.0.0.1:9090:9090"]
     volumes: ["../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
 
   grafana:
@@ -243,10 +264,10 @@ services:
     profiles: [full]
     depends_on: [prometheus]
     networks: [scf-net]
-    ports: ["3001:3000"]   # 3000 remapped: host port 3000 already in use on this machine
+    ports: ["127.0.0.1:3001:3000"]   # 3000 remapped: host port 3000 already in use on this machine
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - "grafana-data:/var/lib/grafana"
       - "../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro"
@@ -259,7 +280,8 @@ services:
     networks: [scf-net]
     environment:
       REDIS_ADDR: redis://redis:6379
-    ports: ["9121:9121"]
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+    ports: ["127.0.0.1:9121:9121"]
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.7.0
@@ -267,4 +289,4 @@ services:
     depends_on: [kafka]
     networks: [scf-net]
     command: ["--kafka.server=kafka:9092"]
-    ports: ["9308:9308"]
+    ports: ["127.0.0.1:9308:9308"]
