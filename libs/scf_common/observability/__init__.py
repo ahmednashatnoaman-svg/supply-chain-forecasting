@@ -19,6 +19,17 @@ RECORDS_PROCESSED = Counter("scf_records_processed_total", "Records processed", 
 ERRORS_TOTAL = Counter("scf_errors_total", "Errors encountered", ["component"])
 LATENCY_SECONDS = Histogram("scf_latency_seconds", "Processing latency in seconds", ["component"])
 
+# ---- Business metrics (Grafana "Pricing & Inventory" row) ----
+# Unlike the generic metrics above, these surface the project's actual value proposition (surge
+# pricing, automated reordering) rather than plumbing health -- see pricing_stream.price_row /
+# check_low_stock_alert, the only two places these are incremented.
+SURGE_EVENTS_TOTAL = Counter(
+    "scf_surge_events_total", "Surge-priced windows detected", ["component"]
+)
+LOW_STOCK_ALERTS_TOTAL = Counter(
+    "scf_low_stock_alerts_total", "Low-stock alerts raised", ["component"]
+)
+
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Return a structlog JSON logger configured at the settings log level."""
@@ -48,4 +59,6 @@ __all__ = [
     "RECORDS_PROCESSED",
     "ERRORS_TOTAL",
     "LATENCY_SECONDS",
+    "SURGE_EVENTS_TOTAL",
+    "LOW_STOCK_ALERTS_TOTAL",
 ]

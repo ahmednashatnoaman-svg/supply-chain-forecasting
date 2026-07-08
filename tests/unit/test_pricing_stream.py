@@ -11,12 +11,17 @@ from __future__ import annotations
 import io
 import json
 
+import numpy as np
 import pytest
 
 fastavro = pytest.importorskip("fastavro")
 fakeredis = pytest.importorskip("fakeredis")
 
 from libs.scf_common.io.kafka import load_schema  # noqa: E402
+from libs.scf_common.observability import (  # noqa: E402
+    LOW_STOCK_ALERTS_TOTAL,
+    SURGE_EVENTS_TOTAL,
+)
 from streaming.lstm.model import N_FEATURES, SEQ_LEN, SurgeLSTM  # noqa: E402
 from streaming.pipeline.pricing_stream import (  # noqa: E402
     check_low_stock_alert,
@@ -186,6 +191,31 @@ def test_price_row_with_real_model_can_signal_surge(fake_redis):
     assert 95.0 <= result["new_price"] <= 125.0
 
 
+def test_price_row_increments_surge_metric_when_surge_is_detected(fake_redis, monkeypatch):
+    """Grafana's 'Surge Pricing Events' panel reads scf_surge_events_total -- this is the only
+    place that counter is incremented, so a wrong condition here would silently show 0 forever.
+    """
+    monkeypatch.setattr(
+        "streaming.pipeline.pricing_stream.predict_batch",
+        lambda model, seq: np.array([0.9], dtype="float32"),
+    )
+    fake_redis.set("forecast:10", 5.0)  # low baseline -> velocity/baseline ratio > surge_threshold
+    before = SURGE_EVENTS_TOTAL.labels(component="streaming.pricing")._value.get()
+
+    result = price_row(10, 500.0, 400.0, 100.0, 100.0, fake_redis, model=object())
+
+    assert result["surge_prob"] == pytest.approx(0.9)
+    after = SURGE_EVENTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    assert after == before + 1
+
+
+def test_price_row_does_not_increment_surge_metric_without_surge(fake_redis):
+    before = SURGE_EVENTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    price_row(10, 1.0, 1.0, 1.0, 100.0, fake_redis, model=None)  # model=None -> surge_prob 0.0
+    after = SURGE_EVENTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    assert after == before
+
+
 def test_price_row_persists_real_sequence_history_to_redis(fake_redis):
     """Issue #36's actual fix, exercised through price_row: a second call for the same SKU reads
     back genuine accumulated history from Redis, not a re-tiled single point.
@@ -229,3 +259,22 @@ def test_check_low_stock_alert_silent_above_threshold(fake_redis):
 
 def test_check_low_stock_alert_silent_when_no_inventory_data(fake_redis):
     assert check_low_stock_alert(999, fake_redis, reorder_threshold=50) is None
+
+
+def test_check_low_stock_alert_increments_metric_when_it_fires(fake_redis):
+    """Grafana's 'Low-Stock Alerts' panel reads scf_low_stock_alerts_total -- this is the only
+    place that counter is incremented.
+    """
+    fake_redis.set("inventory:10", 5)
+    before = LOW_STOCK_ALERTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    check_low_stock_alert(10, fake_redis, reorder_threshold=50)
+    after = LOW_STOCK_ALERTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    assert after == before + 1
+
+
+def test_check_low_stock_alert_does_not_increment_metric_when_silent(fake_redis):
+    fake_redis.set("inventory:10", 500)
+    before = LOW_STOCK_ALERTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    check_low_stock_alert(10, fake_redis, reorder_threshold=50)
+    after = LOW_STOCK_ALERTS_TOTAL.labels(component="streaming.pricing")._value.get()
+    assert after == before
