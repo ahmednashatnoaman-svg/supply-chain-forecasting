@@ -14,6 +14,7 @@ ENV JAVA_HOME=/opt/java
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY libs ./libs
+COPY contracts ./contracts
 COPY streaming ./streaming
 COPY ingestion ./ingestion
 COPY automation ./automation
