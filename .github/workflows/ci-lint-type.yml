@@ -18,4 +18,4 @@ jobs:
       - name: Black (check)
         run: black --check .
       - name: Mypy (libs + pure modules)
-        run: mypy libs streaming/pricing ingestion/generator/surge.py automation/n8n/alert_bridge.py || true
+        run: mypy libs streaming/pricing ingestion/generator/surge.py automation/n8n/alert_bridge.py
