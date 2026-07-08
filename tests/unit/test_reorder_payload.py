@@ -59,9 +59,7 @@ def test_post_with_retry_sends_shared_secret_header_when_configured(stub_server)
     anyone who guesses the webhook URL -- alert_bridge sends this header so a downstream shared-
     secret check (see reorder_workflow.json's "Verify Shared Secret" node) can reject the rest.
     """
-    ok = _post_with_retry(
-        stub_server, {"sku": 1}, retries=1, timeout=2.0, secret="s3cr3t-value"
-    )
+    ok = _post_with_retry(stub_server, {"sku": 1}, retries=1, timeout=2.0, secret="s3cr3t-value")
     assert ok is True
     assert _HeaderCapturingHandler.received_headers[0]["X-Webhook-Secret"] == "s3cr3t-value"
 
