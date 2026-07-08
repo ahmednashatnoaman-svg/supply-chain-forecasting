@@ -81,6 +81,13 @@ class AutomationSettings:
     n8n_webhook_url: str = field(
         default_factory=lambda: _get("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/reorder")
     )
+    n8n_webhook_secret: str = field(
+        # Empty by default (no header sent) -- matches the zero-config local demo, where the
+        # workflow ships `"active": false` and only alert_bridge.py knows the URL. Set
+        # N8N_WEBHOOK_SECRET (both here and as n8n's own WEBHOOK_SHARED_SECRET env var) before
+        # wiring this to a real downstream action -- see automation/n8n/reorder_workflow.json.
+        default_factory=lambda: _get("N8N_WEBHOOK_SECRET", "")
+    )
     supplier_email: str = field(
         default_factory=lambda: _get("SUPPLIER_EMAIL", "supplier@example.com")
     )
