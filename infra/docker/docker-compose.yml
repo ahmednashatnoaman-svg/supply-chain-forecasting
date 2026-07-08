@@ -247,6 +247,9 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: "${N8N_BASIC_AUTH_USER:-admin}"
       N8N_BASIC_AUTH_PASSWORD: "${N8N_BASIC_AUTH_PASSWORD:-changeme}"
+      # Read by reorder_workflow.json's "Verify Shared Secret" node; must match this app's
+      # N8N_WEBHOOK_SECRET (empty in both by default -- the workflow ships inactive/simulated).
+      WEBHOOK_SHARED_SECRET: "${N8N_WEBHOOK_SECRET:-}"
 
   # ---------------- Monitoring ----------------
   prometheus:
