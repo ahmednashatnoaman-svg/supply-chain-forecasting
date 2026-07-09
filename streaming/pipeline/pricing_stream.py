@@ -204,6 +204,9 @@ def price_row(
     new_price = dynamic_price(base_price, velocity, baseline, elasticity, is_surge, _PRICING_CFG)
     presentation = present_price(new_price, base_price, _PSYCH_CFG)
 
+    redis.set(RedisKeys.price(item_id), presentation.display_price)
+    redis.set(RedisKeys.velocity(item_id, f"{settings.pricing.window_seconds}s"), velocity)
+
     return {
         "item_id": int(item_id),
         "base_price": base_price,

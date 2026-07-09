@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import fakeredis
 import pytest
-from pyspark.sql.types import DoubleType, LongType, StringType, StructField, StructType
+from pyspark.sql.types import LongType, StringType, StructField, StructType
 
 from libs.scf_common.contracts import HdfsPaths, RedisKeys
 
@@ -39,32 +39,49 @@ def fake_redis_client(monkeypatch):
 
 def test_emad_batch_e2e(temp_hdfs, fake_redis_client, spark):
     """Run the entire batch pipeline end-to-end using run_batch_once."""
-    # 1. Create synthetic bronze events matching the expected schema
-    schema = StructType(
+    # 1. Create synthetic bronze events matching Retailrocket's *raw* CSV shape (the real
+    # contract _read_bronze_events reads -- timestamp/visitorid/itemid, no price column, staged
+    # as CSV by hdfs_load.sh, not the pre-cleaned silver column names/Parquet this fixture used
+    # to write).
+    events_schema = StructType(
         [
-            StructField("event_time", LongType()),
-            StructField("visitor_id", LongType()),
+            StructField("timestamp", LongType()),
+            StructField("visitorid", LongType()),
             StructField("event", StringType()),
-            StructField("item_id", LongType()),
-            StructField("price", DoubleType()),
+            StructField("itemid", LongType()),
         ]
     )
-
-    data = [
-        (1609459200000, 1, "view", 10, None),
-        (1609459200000, 1, "transaction", 10, 19.99),
-        (1609459200000, 1, "transaction", 11, 5.99),  # co-purchased with 10
-        (1609545600000, 2, "transaction", 10, 19.99),
-        (1609545600000, 3, "transaction", 12, 1.99),
-        (1609545600000, 4, "bogus", 10, 19.99),
-        (1609545600000, 5, "transaction", -1, 19.99),
+    events_data = [
+        (1609459200000, 1, "view", 10),
+        (1609459200000, 1, "transaction", 10),
+        (1609459200000, 1, "transaction", 11),  # co-purchased with 10
+        (1609545600000, 2, "transaction", 10),
+        (1609545600000, 3, "transaction", 12),
+        (1609545600000, 4, "bogus", 10),
+        (1609545600000, 5, "transaction", -1),
     ]
+    events_df = spark.createDataFrame(events_data, events_schema)
+    events_df.write.option("header", "true").csv(HdfsPaths.bronze("events"), mode="overwrite")
 
-    bronze_df = spark.createDataFrame(data, schema)
-
-    # Write to bronze path
-    bronze_path = HdfsPaths.bronze("events")
-    bronze_df.write.parquet(bronze_path, mode="overwrite")
+    # build_inventory reads item_properties from bronze too -- same raw Retailrocket shape
+    # (timestamp/itemid/property/value); one "available" row per item is enough to exercise it.
+    props_schema = StructType(
+        [
+            StructField("timestamp", StringType()),
+            StructField("itemid", StringType()),
+            StructField("property", StringType()),
+            StructField("value", StringType()),
+        ]
+    )
+    props_data = [
+        ("1609459200000", "10", "available", "1"),
+        ("1609459200000", "11", "available", "1"),
+        ("1609459200000", "12", "available", "0"),
+    ]
+    props_df = spark.createDataFrame(props_data, props_schema)
+    props_df.write.option("header", "true").csv(
+        HdfsPaths.bronze("item_properties"), mode="overwrite"
+    )
 
     def fake_train_forecast(features_df):
         import pyspark.sql.functions as F

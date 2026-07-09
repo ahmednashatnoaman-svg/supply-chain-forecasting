@@ -14,6 +14,7 @@ volumes:
   grafana-data:
   airflow-db:
   mlflow-data:
+  n8n-data:
 
 services:
   # ---------------- Kafka + Schema Registry ----------------
@@ -132,8 +133,12 @@ services:
     networks: [scf-net]
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
     environment:
-      SPARK_WORKER_CORES: "2"
-      SPARK_WORKER_MEMORY: "2G"
+      # 4 cores / 8G leaves the always-on streaming job enough headroom for a batch run to actually
+      # get resources concurrently instead of queuing forever on "Initial job has not accepted any
+      # resources" -- was 2/2G, sized for a single job at a time. 8G (up from an initial 4G) because
+      # build_graph's GraphFrames self-join OOM'd a 2G executor on the real ~2.2M-row dataset.
+      SPARK_WORKER_CORES: "4"
+      SPARK_WORKER_MEMORY: "8G"
     deploy:
       replicas: 1   # scale with: docker compose up -d --scale spark-worker=3
 
@@ -235,6 +240,7 @@ services:
     profiles: [full]
     networks: [scf-net]
     ports: ["127.0.0.1:5678:5678"]
+    volumes: ["n8n-data:/home/node/.n8n"]   # persist workflows/executions/credentials across recreates
     environment:
       N8N_SECURE_COOKIE: "false"
       # n8n's Function/Code nodes run arbitrary JS and its HTTP node can reach every other

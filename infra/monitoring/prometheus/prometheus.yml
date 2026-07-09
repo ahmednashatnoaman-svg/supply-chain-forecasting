@@ -17,12 +17,16 @@ scrape_configs:
       - targets: ["kafka-exporter:9308"]
 
   # Python layers expose /metrics via libs.scf_common.observability.serve_metrics(port).
+  # Targeted by container name, not host.docker.internal: these run as containers on this same
+  # scf-net bridge network (docker run --network scf-net --name <target>), not host processes,
+  # so container-name DNS resolution works without publishing the port to the host at all.
+  # batch/ingestion are one-shot jobs -- Prometheus will correctly show them "down" between runs.
   - job_name: streaming
     static_configs:
-      - targets: ["host.docker.internal:8000"]  # streaming pricing engine
+      - targets: ["scf-pricing-stream-run:8000"]  # streaming pricing engine
   - job_name: batch
     static_configs:
-      - targets: ["host.docker.internal:8001"]
+      - targets: ["scf-batch-pipeline-run:8001"]
   - job_name: ingestion
     static_configs:
-      - targets: ["host.docker.internal:8002"]
+      - targets: ["scf-traffic-generator-run:8002"]
