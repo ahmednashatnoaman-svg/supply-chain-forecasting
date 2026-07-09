@@ -13,7 +13,10 @@ def build_features(events: DataFrame) -> DataFrame:
         events: silver events (event_time timestamp, item_id, event, ...).
 
     Returns:
-        Gold features: item_id, ds(date), velocity_7d, velocity_30d, dow, is_weekend.
+        Gold features: item_id, ds(date), velocity_7d, velocity_30d, dow, is_weekend, label.
+        `label` is the *next* day's transaction count (what train_forecast predicts); it is null
+        on each item's most recent day, since there is no next day yet to supervise on -- callers
+        that train on this must filter those out first.
     """
     daily = (
         events.filter(F.col("event") == "transaction")
@@ -23,10 +26,12 @@ def build_features(events: DataFrame) -> DataFrame:
     )
     w7 = Window.partitionBy("item_id").orderBy("ds").rowsBetween(-6, 0)
     w30 = Window.partitionBy("item_id").orderBy("ds").rowsBetween(-29, 0)
+    by_item_date = Window.partitionBy("item_id").orderBy("ds")
     return (
         daily.withColumn("velocity_7d", F.avg("daily_txn").over(w7))
         .withColumn("velocity_30d", F.avg("daily_txn").over(w30))
         .withColumn("dow", F.dayofweek("ds"))
         .withColumn("is_weekend", F.col("dow").isin(1, 7))
-        .select("item_id", "ds", "velocity_7d", "velocity_30d", "dow", "is_weekend")
+        .withColumn("label", F.lead("daily_txn", 1).over(by_item_date).cast("double"))
+        .select("item_id", "ds", "velocity_7d", "velocity_30d", "dow", "is_weekend", "label")
     )

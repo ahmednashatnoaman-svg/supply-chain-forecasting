@@ -26,8 +26,14 @@ def train_forecast(features: DataFrame):
     Returns:
         (model, predictions_df) where predictions_df has columns [item_id, forecast_demand].
     """
+    # Each item's most recent day has no next-day count yet (see build_features) -- can't
+    # supervise-train on it, but it's exactly the row we want the model to forecast *forward*
+    # from once trained (today's features -> tomorrow's demand).
+    labeled = features.filter(F.col("label").isNotNull())
+    latest = features.filter(F.col("label").isNull())
     assembler = VectorAssembler(inputCols=FEATURE_COLS, outputCol="features_vec")
-    train = assembler.transform(features.na.fill(0.0))
+    train = assembler.transform(labeled.na.fill(0.0))
+    predict_on = assembler.transform(latest.na.fill(0.0))
 
     gbt = GBTRegressor(featuresCol="features_vec", labelCol="label")
 
@@ -57,7 +63,7 @@ def train_forecast(features: DataFrame):
         mlflow.spark.log_model(best_model, "gbt_forecast_model")
 
         preds = (
-            best_model.transform(train)
+            best_model.transform(predict_on)
             .withColumn("forecast_demand", F.greatest(F.col("prediction"), F.lit(0.0)))
             .select("item_id", "forecast_demand")
         )
