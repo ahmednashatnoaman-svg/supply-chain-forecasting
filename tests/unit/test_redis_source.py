@@ -69,8 +69,10 @@ def test_kpi_summary_aggregates_across_skus(fake_redis):
     fake_redis.set("price:current:20", 10.0)
     fake_redis.set("forecast:10", 100.0)
     fake_redis.set("forecast:20", 50.0)
-    fake_redis.set("velocity:10:60s", 5.0)  # 5/100 -> not surging
-    fake_redis.set("velocity:20:60s", 300.0)  # 300/50 = 6 -> surging (threshold default 2.0)
+    # Scaled baseline for 100.0 is ~0.069. Velocity 0 -> 0 ratio (not surging).
+    fake_redis.set("velocity:10:60s", 0.0)
+    # Scaled baseline for 50.0 is ~0.035. Velocity 1.0 -> ratio ~28 (surging > 2.0).
+    fake_redis.set("velocity:20:60s", 1.0)
     fake_redis.set("inventory:10", 500)  # above default reorder threshold (50)
     fake_redis.set("inventory:20", 10)  # below default reorder threshold -> low stock
 
