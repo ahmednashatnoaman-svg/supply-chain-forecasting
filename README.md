@@ -36,6 +36,9 @@ See [`docs/architecture/system-design.md`](docs/architecture/system-design.md) f
 and [`docs/architecture/data-contracts.md`](docs/architecture/data-contracts.md) for the interface
 contracts that let all five layers integrate.
 
+**Diagrams (Miro):** [Supply Chain Forecasting — System Design](https://miro.com/app/board/uXjVH99Wkbw=/)
+— architecture, user stories, system design, and per-layer (Spark/Kafka/Hadoop) diagrams.
+
 ## Team & ownership
 
 | Member | Layer owned | Directory |
@@ -75,8 +78,33 @@ make smoke                    # run the end-to-end walking-skeleton test
 make dashboard                # open the Streamlit command center
 ```
 
-See [`docs/runbooks/`](docs/runbooks/) for operational procedures and
+**After `make up`**, see [`docs/runbooks/orchestration-guide.md`](docs/runbooks/orchestration-guide.md)
+for a live-verified table of every container (port, URL, what it does), how to watch each layer work
+in real time (streaming logs, Kafka console consumer, n8n executions, Grafana, dashboard), and a
+self-check script to confirm the stack is actually healthy rather than just "up". See
+[`docs/runbooks/`](docs/runbooks/) generally for startup/shutdown, scaling, and troubleshooting, and
 [`docs/reference/project-brief.md`](docs/reference/project-brief.md) for the original brief.
+
+## Docker images
+
+Each of the 4 custom services builds its own image from `infra/docker/*.Dockerfile`:
+
+| Image | Builds from | Base |
+|---|---|---|
+| `scf-dashboard` | `infra/docker/dashboard.Dockerfile` | `python:3.10-slim` |
+| `scf-pricing-stream` | `infra/docker/pricing-stream.Dockerfile` | `apache/spark:3.5.1` (same jars as the cluster) |
+| `scf-batch-pipeline` | `infra/docker/batch-pipeline.Dockerfile` | `apache/spark:3.5.1` |
+| `scf-traffic-generator` | `infra/docker/traffic-generator.Dockerfile` | `python:3.10-slim` |
+
+```bash
+docker build -f infra/docker/dashboard.Dockerfile -t scf-dashboard .
+# (repeat for the other 3 with their respective Dockerfile/tag)
+```
+
+**Docker Hub:** publishing is intentionally deferred until the full pipeline runs end-to-end with no
+errors (batch forecast + streaming pricing + inventory all producing real data). Until then, build
+and run the images locally as above — every service in `docker-compose.yml` besides these 4 already
+pulls a public prebuilt image, so `make up` needs no Docker Hub auth at all.
 
 ## Tech stack
 
