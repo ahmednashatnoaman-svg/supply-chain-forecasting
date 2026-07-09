@@ -118,7 +118,10 @@ def get_kpi_summary(window: str = "60s") -> dict:
     surge_count = sum(
         1
         for s, baseline in forecasts.items()
-        if baseline > 0 and s in velocities and (velocities[s] / baseline) > surge_threshold
+        if baseline > 0
+        and s in velocities
+        and (velocities[s] / max(baseline * (settings.pricing.window_seconds / 86400.0), 0.01))
+        > surge_threshold
     )
     low_stock_count = sum(1 for inv in inventories.values() if inv < reorder_threshold)
 
