@@ -178,7 +178,7 @@ services:
       retries: 10
 
   airflow-init:
-    image: apache/airflow:2.9.2
+    build: {context: ../.., dockerfile: infra/docker/airflow.Dockerfile}
     profiles: [full]
     depends_on:
       airflow-postgres:
@@ -189,6 +189,10 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      # Without a pinned value, webserver/scheduler/triggerer each generate their own random
+      # secret_key on boot -- the webserver then fails with a 403 fetching task logs from the
+      # scheduler/triggerer, since it signs the log-fetch request with a key they don't share.
+      AIRFLOW__WEBSERVER__SECRET_KEY: "${AIRFLOW_SECRET_KEY:-scf-dev-secret-key-change-in-prod}"
     volumes: ["../../batch/airflow_dags:/opt/airflow/dags"]
     entrypoint: /bin/bash
     command:
@@ -200,7 +204,7 @@ services:
           --password "${AIRFLOW_ADMIN_PASSWORD:-admin}" || true
 
   airflow-webserver:
-    image: apache/airflow:2.9.2
+    build: {context: ../.., dockerfile: infra/docker/airflow.Dockerfile}
     profiles: [full]
     depends_on: [airflow-init]
     networks: [scf-net]
@@ -215,12 +219,18 @@ services:
       retries: 10
 
   airflow-scheduler:
-    image: apache/airflow:2.9.2
+    build: {context: ../.., dockerfile: infra/docker/airflow.Dockerfile}
     profiles: [full]
     depends_on: [airflow-init]
     networks: [scf-net]
     environment: *airflow-env
-    volumes: ["../../batch/airflow_dags:/opt/airflow/dags"]
+    # DockerOperator (nightly_dag.py) launches scf-batch-pipeline via the host's Docker daemon --
+    # this grants the scheduler container root-equivalent access to the host. Scoped to the
+    # scheduler only (where LocalExecutor actually runs tasks); webserver/init don't need it just
+    # to parse/render the DAG file.
+    volumes:
+      - "../../batch/airflow_dags:/opt/airflow/dags"
+      - "/var/run/docker.sock:/var/run/docker.sock"
     command: ["scheduler"]
 
   # ---------------- MLflow (model registry) ----------------
