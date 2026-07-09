@@ -183,6 +183,12 @@ def price_row(
     forecast_raw = redis.get(RedisKeys.forecast(item_id))
     baseline = float(forecast_raw) if forecast_raw is not None else 0.0
 
+    # Scale daily baseline to the streaming window size for accurate ratio comparison
+    if baseline > 0:
+        window_baseline = max(baseline * (settings.pricing.window_seconds / 86400.0), 0.01)
+    else:
+        window_baseline = 0.0
+
     elasticity_raw = redis.get(RedisKeys.elasticity(item_id))
     elasticity = 0.0
     if elasticity_raw:
@@ -205,12 +211,16 @@ def price_row(
     seq = reshape_lstm_sequence(sequence_flat)
     surge_prob = float(predict_batch(model, seq[np.newaxis, :, :])[0])
     is_surge = (
-        surge_prob >= 0.5 and baseline > 0 and (velocity / baseline) > _PRICING_CFG.surge_threshold
+        surge_prob >= 0.5
+        and window_baseline > 0
+        and (velocity / window_baseline) > _PRICING_CFG.surge_threshold
     )
     if is_surge:
         SURGE_EVENTS_TOTAL.labels(component="streaming.pricing").inc()
 
-    new_price = dynamic_price(base_price, velocity, baseline, elasticity, is_surge, _PRICING_CFG)
+    new_price = dynamic_price(
+        base_price, velocity, window_baseline, elasticity, is_surge, _PRICING_CFG
+    )
     presentation = present_price(new_price, base_price, _PSYCH_CFG)
 
     redis.set(RedisKeys.price(item_id), presentation.display_price)
