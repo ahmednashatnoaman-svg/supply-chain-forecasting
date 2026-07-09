@@ -43,11 +43,21 @@ def publish_forecasts(
     if inventory_df is not None:
         inventory_map = {row["item_id"]: int(row["stock"]) for row in inventory_df.collect()}
 
+    forecast_map: dict[int, float] = {
+        row["item_id"]: float(row["forecast_demand"]) for row in forecast_df.collect()
+    }
+
+    # forecast_df only covers each item's *latest* unlabeled day (see train_forecast), a much
+    # smaller set than every item that ever appears in the graph's transaction history -- looping
+    # over forecast_df alone silently dropped elasticity/community for every SKU outside that
+    # narrow overlap. Union all four sources so each SKU gets whichever data is available for it.
+    all_skus = set(forecast_map) | set(elasticity_map) | set(community_map) | set(inventory_map)
+
     count = 0
-    for row in forecast_df.collect():
-        sku = row["item_id"]
+    for sku in all_skus:
         pipe = r.pipeline()
-        pipe.set(RedisKeys.forecast(sku), float(row["forecast_demand"]))
+        if sku in forecast_map:
+            pipe.set(RedisKeys.forecast(sku), forecast_map[sku])
         if sku in elasticity_map:
             pipe.set(RedisKeys.elasticity(sku), json.dumps(elasticity_map[sku]))
         if sku in community_map:
