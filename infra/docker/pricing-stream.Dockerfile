@@ -2,12 +2,16 @@
 # client that submits to a remote cluster -- point it at one via SPARK_MASTER (e.g. spark://spark-master:7077)
 # and the rest of the *_HOST/*_BOOTSTRAP_SERVERS env vars from libs/scf_common/config.
 #
-# /opt/spark is copied from the SAME apache/spark:3.5.1 image used by spark-master/spark-worker
-# in docker-compose, and SPARK_HOME points at it -- PyPI's pyspark wheel and the official binary
-# distribution are independent builds of "3.5.1" that can disagree at the driver/executor
-# wire-protocol level (observed as EOFException deserializing task results). Running the exact
-# same jars on both sides avoids that; `pip install .` still provides the pyspark Python package,
-# but PYTHONPATH puts the copied (jar-matched) one ahead of it.
+# Both /opt/spark AND /opt/java/openjdk are copied from the SAME apache/spark:3.5.1 image used by
+# spark-master/spark-worker in docker-compose. Two independent mismatches will produce the same
+# symptom (EOFException deserializing task results between driver and executor) if not pinned:
+#   1. Jars: PyPI's pyspark wheel and the official binary distribution are independent builds of
+#      "3.5.1" that can disagree at the wire-protocol level. `pip install .` still provides the
+#      pyspark Python package, but PYTHONPATH puts the copied (jar-matched) one ahead of it.
+#   2. JVM: apache/spark:3.5.1 bundles Temurin Java 11. Installing a JRE from python:3.10-slim's
+#      own apt repo (e.g. openjdk-21-jre-headless) runs those same 3.5.1 jars on a different major
+#      JVM version than the executors use on spark-worker -- copying the base image's JDK directly
+#      is what actually guarantees a matching runtime, not just matching jars.
 #
 # Build from the repo root:
 #   docker build -f infra/docker/pricing-stream.Dockerfile -t scf-pricing-stream .
@@ -15,11 +19,9 @@ FROM apache/spark:3.5.1 AS spark-base
 
 FROM python:3.10-slim
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-21-jre-headless \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sfn "$(dirname "$(dirname "$(readlink -f "$(which java)")")")" /opt/java
-ENV JAVA_HOME=/opt/java
+COPY --from=spark-base /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 COPY --from=spark-base /opt/spark /opt/spark
 ENV SPARK_HOME=/opt/spark
