@@ -35,6 +35,7 @@ def main() -> None:  # pragma: no cover - needs Spark + HDFS
     from batch.etl.expectations import validate_silver
     from batch.etl.features import build_features
     from batch.etl.inventory import build_inventory
+    from batch.etl.pricing import build_pricing
     from batch.graph.elasticity import build_graph
     from batch.mllib.forecast import train_forecast
     from batch.publish.to_redis import publish_forecasts
@@ -75,11 +76,16 @@ def main() -> None:  # pragma: no cover - needs Spark + HDFS
     inventory = build_inventory(item_properties)
     inventory.write.parquet(HdfsPaths.gold("inventory"), mode="overwrite")
 
+    # 6b. Build Pricing (from Retailrocket's real item_properties `790` price signal)
+    pricing = build_pricing(item_properties)
+    pricing.write.parquet(HdfsPaths.gold("pricing"), mode="overwrite")
+
     # 7. Publish to Redis
     preds_df = spark.read.parquet(HdfsPaths.gold("forecast"))
     graph_df = spark.read.parquet(HdfsPaths.gold("graph"))
     inventory_df = spark.read.parquet(HdfsPaths.gold("inventory"))
-    publish_forecasts(preds_df, graph_df, inventory_df)
+    pricing_df = spark.read.parquet(HdfsPaths.gold("pricing"))
+    publish_forecasts(preds_df, graph_df, inventory_df, pricing_df)
 
     log.info("batch.run_once.done")
     spark.stop()
