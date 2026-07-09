@@ -1,7 +1,15 @@
 """Airflow nightly batch DAG. Implements Emad plan Task 7.
 
-Chains: clean -> features -> data-quality gate -> forecast -> graph -> publish. Each task is a thin
-PythonOperator calling the corresponding module (kept importable/testable).
+Launches the real batch pipeline (`batch.airflow_dags.run_batch_once`, the same clean -> features
+-> gate -> forecast -> graph -> inventory -> pricing -> publish chain `make batch` runs) inside the
+scf-batch-pipeline container via DockerOperator, instead of running Spark in-process inside this
+Airflow container. Airflow's own image has no pyspark, no matching JDK, and no SPARK_MASTER
+pointed at the cluster -- the previous version of this DAG tried to `SparkSession.builder
+.getOrCreate()` directly here and failed immediately with `ModuleNotFoundError: No module named
+'pyspark'`. It also split the pipeline into six separate PythonOperator steps that quietly drifted
+from run_batch_once.py's real fixes (CSV bronze read, the build_graph transaction filter,
+build_inventory, build_pricing) since nothing enforced the two implementations staying in sync. One
+DockerOperator task now IS the single source of truth -- there is no second implementation to drift.
 """
 
 from __future__ import annotations
@@ -9,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.docker.operators.docker import DockerOperator
 
 default_args = {
     "owner": "emad",
@@ -18,95 +26,38 @@ default_args = {
     "depends_on_past": False,
 }
 
-
-def _run_step(step: str, **_):
-    """Real Spark job invocation for `step`."""
-    print(f"[nightly_forecast] starting step: {step}")
-    from pyspark.sql import SparkSession
-
-    # We must configure spark packages for graphframes if running locally/standalone
-    spark = (
-        SparkSession.builder.appName(f"nightly_{step}")
-        .config("spark.jars.packages", "graphframes:graphframes:0.8.3-spark3.5-s_2.12")
-        .getOrCreate()
-    )
-
-    # Normally we would load and save paths from Airflow variables or context.
-    # For demonstration, we just import and run dummy/local paths or empty DFs.
-
-    if step == "clean_events":
-        from batch.etl.clean_events import clean_events
-        from libs.scf_common.contracts import HdfsPaths
-
-        raw = spark.read.parquet(HdfsPaths.bronze("events"))
-        silver = clean_events(raw)
-        silver.write.parquet(HdfsPaths.silver("events"), mode="overwrite")
-
-    elif step == "build_features":
-        from batch.etl.features import build_features
-        from libs.scf_common.contracts import HdfsPaths
-
-        silver = spark.read.parquet(HdfsPaths.silver("events"))
-        gold = build_features(silver)
-        gold.write.parquet(HdfsPaths.gold("features"), mode="overwrite")
-
-    elif step == "data_quality_gate":
-        from batch.etl.expectations import validate_silver
-        from libs.scf_common.contracts import HdfsPaths
-
-        silver = spark.read.parquet(HdfsPaths.silver("events"))
-        validate_silver(silver)
-
-    elif step == "train_forecast":
-        from batch.mllib.forecast import train_forecast
-        from libs.scf_common.contracts import HdfsPaths
-
-        features = spark.read.parquet(HdfsPaths.gold("features"))
-        model, preds = train_forecast(features)
-        preds.write.parquet(HdfsPaths.gold("forecast"), mode="overwrite")
-
-    elif step == "build_graph":
-        from batch.graph.elasticity import build_graph
-        from libs.scf_common.contracts import HdfsPaths
-
-        transactions = spark.read.parquet(HdfsPaths.silver("events"))
-        graph_df = build_graph(transactions)
-        graph_df.write.parquet(HdfsPaths.gold("graph"), mode="overwrite")
-
-    elif step == "publish_redis":
-        from batch.publish.to_redis import publish_forecasts
-        from libs.scf_common.contracts import HdfsPaths
-
-        preds = spark.read.parquet(HdfsPaths.gold("forecast"))
-        graph_df = spark.read.parquet(HdfsPaths.gold("graph"))
-        publish_forecasts(preds, graph_df)
-
-    else:
-        raise ValueError(f"Unknown step: {step}")
-
-    print(f"[nightly_forecast] finished step: {step}")
-    spark.stop()
-
+# Must match the network docker-compose creates (project name `scf` + service network `scf-net`)
+# so the container can resolve kafka/namenode/spark-master/redis by their compose service names.
+_NETWORK = "scf_scf-net"
 
 with DAG(
     dag_id="nightly_forecast",
-    description="Nightly demand forecast + cross-elasticity publish",
+    description="Nightly demand forecast + cross-elasticity + pricing publish",
     schedule="0 2 * * *",  # 02:00 daily
     start_date=datetime(2026, 1, 1),
     catchup=False,
     default_args=default_args,
     tags=["batch", "forecast"],
 ) as dag:
-    steps = [
-        "clean_events",
-        "build_features",
-        "data_quality_gate",
-        "train_forecast",
-        "build_graph",
-        "publish_redis",
-    ]
-    tasks = [
-        PythonOperator(task_id=s, python_callable=_run_step, op_kwargs={"step": s}) for s in steps
-    ]
-    for upstream, downstream in zip(tasks, tasks[1:], strict=False):
-        upstream >> downstream
+    run_batch_pipeline = DockerOperator(
+        task_id="run_batch_pipeline",
+        image="scf-batch-pipeline:latest",
+        container_name="scf-batch-pipeline-run",
+        api_version="auto",
+        auto_remove="success",
+        docker_url="unix://var/run/docker.sock",
+        network_mode=_NETWORK,
+        mount_tmp_dir=False,
+        environment={
+            "SPARK_MASTER": "spark://spark-master:7077",
+            "SPARK_EXECUTOR_MEMORY": "4g",
+            "SPARK_DRIVER_MEMORY": "2g",
+            "REDIS_HOST": "redis",
+            "REDIS_PORT": "6379",
+            "REDIS_DB": "0",
+            "HDFS_NAMENODE": "hdfs://namenode:9000",
+            "HDFS_BRONZE": "/data/bronze",
+            "HDFS_SILVER": "/data/silver",
+            "HDFS_GOLD": "/data/gold",
+        },
+    )

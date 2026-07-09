@@ -74,7 +74,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "Kafka — Consumer Lag",
-      "description": "Consumer lag per topic/group from kafka-exporter.",
+      "description": "Always empty by design: Spark Structured Streaming manages Kafka offsets via its own checkpoint directory, never the standard consumer-group commit protocol kafka-exporter reads from -- there is no consumer group for it to report lag for. Topic throughput (this dashboard's 'Messages In/sec' panel) is the real signal for this architecture.",
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -89,12 +89,12 @@
       "id": 5,
       "type": "timeseries",
       "title": "Redis — Commands / sec",
-      "description": "Redis instantaneous_ops_per_sec from redis-exporter.",
+      "description": "rate() of redis_commands_processed_total (a counter) from redis-exporter -- this exporter version doesn't expose an instantaneous ops/sec gauge.",
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "redis_instantaneous_ops_per_sec",
+          "expr": "rate(redis_commands_processed_total[1m])",
           "legendFormat": "ops/s",
           "refId": "A"
         }

@@ -53,15 +53,23 @@ class SparkSettings:
     executor_memory: str = field(default_factory=lambda: _get("SPARK_EXECUTOR_MEMORY", "2g"))
     driver_memory: str = field(default_factory=lambda: _get("SPARK_DRIVER_MEMORY", "2g"))
     # Kryo is the default for RDD-heavy jobs (GraphFrames self-joins in batch/graph/elasticity.py
-    # benefit most). Override to org.apache.spark.serializer.JavaSerializer via SPARK_SERIALIZER if
-    # your platform's Kryo build corrupts driver/executor task results (seen on Spark 3.5.1 arm64
-    # under Docker Desktop -- EOFException in KryoDeserializationStream.readObject on any collect(),
-    # reproducible with zero custom code).
+    # benefit most). NOTE: an EOFException in KryoDeserializationStream.readObject on any collect()
+    # was previously (mis)attributed to "Kryo on arm64" here -- the real cause was the driver-side
+    # image running a different major JVM than the cluster's executors (see infra/docker/
+    # pricing-stream.Dockerfile and batch-pipeline.Dockerfile, which now copy /opt/java/openjdk
+    # straight from the same apache/spark:3.5.1 image spark-master/spark-worker run, guaranteeing a
+    # byte-identical JVM). SPARK_SERIALIZER is kept as an escape hatch, not a fix for that bug.
     serializer: str = field(
         default_factory=lambda: _get(
             "SPARK_SERIALIZER", "org.apache.spark.serializer.KryoSerializer"
         )
     )
+    # Standalone mode gives one app ALL cores on a worker by default (spreadOut). With a single
+    # 4-core worker shared between the always-on streaming job and occasional batch/debug runs,
+    # that starves the second app indefinitely (Spark master queues it WAITING, no error, no
+    # timeout -- see docs/runbooks/orchestration-guide.md §7). Capping each app's share lets both
+    # run concurrently instead of requiring manual sequencing.
+    cores_max: str | None = field(default_factory=lambda: _get("SPARK_CORES_MAX", "2") or None)
 
 
 @dataclass(frozen=True)

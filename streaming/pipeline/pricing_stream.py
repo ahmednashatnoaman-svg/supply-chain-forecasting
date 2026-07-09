@@ -170,7 +170,16 @@ def price_row(
     Deterministic given the Redis client's current state and the model, which is what makes this
     unit-testable with fakeredis.
     """
-    base_price = float(last_price) if last_price is not None else 0.0
+    # Retailrocket's live clickstream events carry no price field (see batch/etl/pricing.py) -- the
+    # live event's own price is used when present (e.g. synthetic test data), but real traffic
+    # always falls back to whatever price is already in Redis (seeded nightly by
+    # batch.etl.pricing.build_pricing, then kept current by this same key on every prior window).
+    # Only a genuinely brand-new, never-priced SKU falls all the way through to 0.0.
+    if last_price is not None:
+        base_price = float(last_price)
+    else:
+        existing_price = redis.get(RedisKeys.price(item_id))
+        base_price = float(existing_price) if existing_price is not None else 0.0
     forecast_raw = redis.get(RedisKeys.forecast(item_id))
     baseline = float(forecast_raw) if forecast_raw is not None else 0.0
 
