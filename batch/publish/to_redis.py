@@ -17,12 +17,16 @@ from libs.scf_common.observability import RECORDS_PROCESSED, get_logger
 log = get_logger("batch.publish")
 
 
-def publish_forecasts(forecast_df: DataFrame, graph_df: DataFrame) -> int:
-    """Publish forecasts + elasticity to Redis; return number of SKUs written.
+def publish_forecasts(
+    forecast_df: DataFrame, graph_df: DataFrame, inventory_df: DataFrame | None = None
+) -> int:
+    """Publish forecasts + elasticity + inventory to Redis; return number of SKUs written.
 
     Args:
         forecast_df: [item_id, forecast_demand].
         graph_df: [item_id, related_item_id, elasticity_weight, community].
+        inventory_df: optional [item_id, stock] from batch.etl.inventory.build_inventory. When
+            omitted, inventory keys are left untouched (existing values, if any, are preserved).
     """
     r = get_redis()
     # Collect elasticity into per-SKU JSON lists (small after aggregation).
@@ -35,6 +39,10 @@ def publish_forecasts(forecast_df: DataFrame, graph_df: DataFrame) -> int:
         if "community" in row and row["community"] is not None:
             community_map[row["item_id"]] = int(row["community"])
 
+    inventory_map: dict[int, int] = {}
+    if inventory_df is not None:
+        inventory_map = {row["item_id"]: int(row["stock"]) for row in inventory_df.collect()}
+
     count = 0
     for row in forecast_df.collect():
         sku = row["item_id"]
@@ -44,6 +52,8 @@ def publish_forecasts(forecast_df: DataFrame, graph_df: DataFrame) -> int:
             pipe.set(RedisKeys.elasticity(sku), json.dumps(elasticity_map[sku]))
         if sku in community_map:
             pipe.set(RedisKeys.community(sku), community_map[sku])
+        if sku in inventory_map:
+            pipe.set(RedisKeys.inventory(sku), inventory_map[sku])
         pipe.execute()  # atomic per SKU
         count += 1
     RECORDS_PROCESSED.labels(component="batch.publish").inc(count)
