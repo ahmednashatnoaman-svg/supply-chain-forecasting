@@ -13,6 +13,9 @@ from datetime import datetime
 import plotly.graph_objects as go
 
 _FALLBACK_SKUS = ["10", "20", "30"]
+# A bar per SKU stops being readable well before real-dataset scale (tens of thousands of active
+# SKUs) -- show the most active ones by live velocity, matching page 1's behavior.
+_MAX_SKUS_SHOWN = 30
 
 
 def _event_time_ms(raw: int | datetime) -> int:
@@ -61,8 +64,14 @@ def render(events: list[dict] | None = None, source=None) -> go.Figure:
         from automation.dashboard.components import redis_source as source
 
     skus = source.list_skus() or _FALLBACK_SKUS
-    prices = [source.get_price(s) or 0 for s in skus]
-    fig.add_bar(x=[str(s) for s in skus], y=prices, name="Current price")
+    prices = source.get_prices(skus)
+    # A bar per SKU stops being readable well before real-dataset scale -- show the same
+    # most-active-by-velocity slice the forecast-vs-actual page does, capped for readability.
+    velocities = source.get_velocities(skus)
+    shown = sorted(skus, key=lambda s: velocities.get(s, 0), reverse=True)[:_MAX_SKUS_SHOWN]
+    fig.add_bar(
+        x=[str(s) for s in shown], y=[prices.get(s, 0) for s in shown], name="Current price"
+    )
     fig.update_layout(
         title="Current dynamic price by SKU (no live updates yet)",
         xaxis_title="SKU",
