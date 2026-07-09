@@ -72,8 +72,9 @@ actually running, not the intended design.
 | `scf-grafana-1` | 3001→3000 | http://localhost:3001 (`admin`/`admin`) | ✅ Up 8h, HTTP 302 |
 | `scf-redis-exporter-1` | 9121 | http://localhost:9121/metrics | ✅ Up 8h |
 | `scf-kafka-exporter-1` | 9308 | http://localhost:9308/metrics | ✅ Up 6h |
-| `scf-pricing-stream-run` | — | logs only (`docker logs -f`) | 🔴 **Stopped** (exit 137 — deliberately killed to free the 2-core Spark worker for a batch run; needs restart, see §7) |
-| `scf-batch-pipeline-run` | — | logs only | 🔴 **Crashed** (exit 1 — hit the now-fixed `label does not exist` bug; the fix is in the code but the image hasn't been rebuilt yet, see §7) |
+| `scf-pricing-stream-run` | — | logs only (`docker logs -f`) | ✅ Always-on; restart after any `spark-worker` recreate (breaks its Spark RPC session — not a bug, just how Spark Standalone handles a worker replacement) |
+| `scf-batch-pipeline-run` | — | logs only | ✅ One-shot; Prometheus correctly shows it "down" between runs. Exits 0 on success — check `docker inspect --format '{{.State.ExitCode}}'` |
+| `scf-traffic-generator-run` | — | logs only | ✅ One-shot/long-running depending on `generator.yaml` `limit`; needs `data/raw` mounted (see §7 gotchas) |
 
 **Note on ports 3000/3001 and 8080/8088/8082:** Grafana's internal port 3000 is remapped to host
 3001, and both Spark Master and Airflow internally use 8080, remapped to 8088 and 8082
@@ -88,25 +89,27 @@ Scanned Redis directly (`redis-cli --scan`) rather than trusting any UI:
 
 | Redis key pattern | What it means | Count right now | Verdict |
 |---|---|---|---|
-| `price:current:*` | Live price per SKU, written every streaming window | 3,811 | ✅ Real, populated by the streaming run before it was stopped |
-| `velocity:*:60s` | Rolling 60s transaction velocity per SKU | 3,811 | ✅ Real |
-| `forecast:*` | Nightly MLlib demand forecast per SKU | **0** | 🔴 Empty — no batch run has completed successfully yet |
-| `inventory:*` | Live stock level per SKU | **0** | 🔴 Empty — see gap below |
+| `price:current:*` | Live price per SKU, written every streaming window | 6,927 | ✅ Real, written by the streaming engine every window |
+| `velocity:*:60s` | Rolling 60s transaction velocity per SKU | 6,927 | ✅ Real |
+| `forecast:*` | Nightly MLlib demand forecast per SKU | **10,083** | ✅ Real — batch run completed clean end-to-end |
+| `inventory:*` | Live stock level per SKU | **9,786** | ✅ Real — derived from Retailrocket's own `item_properties` `available` signal |
+| `elasticity:*` / `community:*` | Cross-product co-purchase graph | populated after the `publish_forecasts` SKU-union fix (see below) | ✅ Fixed |
 
-**Known gap (not yet fixed):** nothing in the real pipeline ever writes `inventory:*`. The only
-writer anywhere in the codebase is the manual `scripts/seed_redis_stub.py` (hardcodes 5 SKUs to
-500 units each) — it hasn't even been run since the last Redis restart, hence the zero count. This
-means:
-- `check_low_stock_alert()` in `streaming/pipeline/pricing_stream.py` can never fire in the live
-  system (it always reads `None`).
-- The n8n auto-reorder workflow (§2, row 10) will never actually trigger from real traffic.
-- The dashboard's low-stock KPI has no real backing data.
-
-The Retailrocket dataset's own `item_properties_part1/2.csv` (already staged in HDFS bronze —
-confirmed via `hdfs dfs -ls /data/bronze`) contains a real, time-varying `available` (0/1) field
-per item, which is the correct real source for this — it's just never been wired into
-`build_features` or the batch publish step. This is the next fix planned for the pipeline, not yet
-implemented.
+**All four gaps above are now fixed** (previously this section documented them as broken):
+1. **`forecast:*`/`inventory:*` were 0** — traced to `build_features` never producing the `label`
+   column `train_forecast` needed, and nothing writing inventory at all. Fixed in
+   `batch/etl/features.py`, `batch/mllib/forecast.py`, and the new `batch/etl/inventory.py`
+   (derives real stock from `item_properties`' `available` field, already staged in HDFS bronze).
+2. **`build_graph` OOM'd on the real ~2.2M-row dataset** — root cause wasn't insufficient memory
+   (two rounds of Spark-worker memory bumps didn't fix it) but a real data-contract bug:
+   `cooccurrence_edges` self-joins on `visitor_id` and its own docstring says it expects
+   transaction-only rows, but `run_batch_once` was passing it the *entire* silver events table
+   (views + addtocart + transactions). Fixed by filtering to transactions first.
+3. **`elasticity:*`/`community:*` stayed empty even after the graph itself had real data** —
+   `publish_forecasts` only looped over `forecast_df`'s SKUs (each item's *latest* unlabeled day
+   only — a much smaller set), so it silently never reached most of the graph's item_ids. Fixed by
+   unioning all four data sources (forecast/elasticity/community/inventory) before looping, so
+   every SKU gets whichever data actually exists for it.
 
 ---
 
@@ -167,17 +170,72 @@ docker exec scf-redis-1 redis-cli --scan --pattern "price:current:*" | wc -l
 
 ---
 
-## 7. Pending actions to get to a fully green state
+## 7. Operational gotchas learned the hard way
 
-1. **Rebuild the batch pipeline image** — `run_batch_once.py`, `features.py`, and `forecast.py`
-   were fixed (missing `label` column, wrong bronze read format) but the running image predates
-   the fix. Rebuild + rerun `make batch` (or the container equivalent).
-2. **Restart streaming** — `scf-pricing-stream-run` was intentionally stopped to free the
-   single 2-core Spark worker for the batch job. Restart it once batch finishes, or raise
-   `spark-worker` core count in `docker-compose.yml` so both can run concurrently.
-3. **Wire real inventory data** — see the gap in §4. Needs `item_properties` (`available` field)
-   read into a Redis-writing step, either in the batch publish stage or a small dedicated job.
-4. Commit and push the batch-pipeline fixes (currently only applied locally, not yet committed).
+**Docker's data lives on an external volume — if it's unmounted, Docker Desktop won't start.**
+`~/Library/Group Containers/group.com.docker/settings-store.json` has `DataFolder` pointed at
+`/Volumes/SCFWork/docker-data` (moved there during an earlier disk-space crisis on the main boot
+drive). If that external volume gets ejected/unmounted for any reason, Docker Desktop fails with
+either a generic mount permission error or `"Invalid virtual machine configuration"`. Fix:
+```bash
+diskutil list                                          # find the disk (look for "SCFWork")
+hdiutil attach "/path/to/scf-work.sparseimage"          # cleanly re-attach + auto-mount
+```
+If Docker's own VM disk (`Docker.raw` inside that DataFolder) is itself corrupted — a genuinely
+invalid config, not just an unmounted volume — the only reliable fix found was deleting that one
+file and letting Docker Desktop recreate it fresh (equivalent to "Reset to factory defaults" when
+using a custom data location): `rm /Volumes/SCFWork/docker-data/Docker.raw`, then relaunch. This
+wipes all images/containers/volumes — expect to rebuild everything.
+
+**`traffic-generator`'s `data/raw` mount used to be a symlink to that same external volume** —
+converted to real local files in the repo (`data/raw/*.csv`) specifically because Docker's mount
+namespace can't follow a host-side symlink out to a separate volume; only bind-mounting the
+*real* target path works.
+
+**BuildKit can wedge under sustained heavy load** (long Spark image builds + concurrent containers
+running for hours) — symptoms: `docker build` hangs indefinitely with zero CPU usage, but
+`docker ps`/`docker logs` on existing containers still work fine. Workaround: `DOCKER_BUILDKIT=0
+docker build ...` (legacy builder, bypasses the wedged daemon-side BuildKit session entirely)
+rather than immediately restarting Docker Desktop.
+
+**Docker Hub anonymous pull rate limits** — rebuilding the whole stack from a fresh/wiped Docker
+Desktop VM re-pulls every base image at once and can exhaust the ~100-pulls/6h anonymous limit,
+surfacing as `UNAUTHORIZED: authentication required` on totally public images. Fix: `docker login`
+with a real account (in your own terminal — never paste credentials into an agent session).
+
+**Grafana's `GF_SECURITY_ADMIN_PASSWORD` only applies on first-ever startup** — once its SQLite DB
+exists (on the persisted `grafana-data` volume), the env var is ignored on every subsequent
+restart. To reset a forgotten/stale password: stop the container, then run the CLI against the
+*same* volume with the server not running (it needs an exclusive DB lock):
+```bash
+docker stop scf-grafana-1
+docker run --rm --entrypoint grafana-cli -v scf_grafana-data:/var/lib/grafana \
+  grafana/grafana:11.1.0 admin reset-admin-password <newpassword>
+docker start scf-grafana-1
+```
+
+**Grafana's dashboard/datasource provisioning silently does nothing if the YAML sits at the wrong
+depth** — Grafana only reads `provisioning/dashboards/*.yml` and `provisioning/datasources/*.yml`
+(one level deeper than you'd guess); a `dashboards.yml` sitting directly in `provisioning/` is
+never read, with only an easy-to-miss log line (`can't read dashboard provisioning files from
+directory`) as the tell.
+
+## 8. Pending actions to reach a fully green state
+
+- [x] ~~Rebuild the batch pipeline image~~ — done, verified end-to-end (exit 0, 10,083 SKUs
+      published, forecast/inventory/elasticity/community all populated).
+- [x] ~~Restart streaming~~ — done; note it needs restarting again after any `spark-worker`
+      recreate (raising cores/memory requires recreating the container, which drops the
+      streaming job's active Spark session).
+- [x] ~~Wire real inventory data~~ — done via `batch/etl/inventory.py`.
+- [x] ~~Fix `build_graph` and `publish_forecasts`~~ — done (§4).
+- [ ] **Re-push the 4 Docker Hub images** — `ahmednashat1/scf-{dashboard,pricing-stream,
+      batch-pipeline,traffic-generator}` were pushed once, but multiple fixes have landed since
+      (transaction-filter graph fix, publish SKU-union fix, `serve_metrics` wiring). Rebuild
+      locally and `docker push` all 4 again once the current full-stack verification pass
+      completes.
+- [ ] Run `make smoke` / the full test suite one more time post-rebuild to confirm no regressions
+      from the Docker Desktop VM reset.
 
 ---
 
