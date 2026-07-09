@@ -63,7 +63,10 @@ def publish_forecasts(
     # over forecast_df alone silently dropped elasticity/community for every SKU outside that
     # narrow overlap. Union all five sources so each SKU gets whichever data is available for it.
     all_skus = (
-        set(forecast_map) | set(elasticity_map) | set(community_map) | set(inventory_map)
+        set(forecast_map)
+        | set(elasticity_map)
+        | set(community_map)
+        | set(inventory_map)
         | set(pricing_map)
     )
 
