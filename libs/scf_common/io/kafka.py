@@ -100,14 +100,25 @@ class AvroKafkaConsumer:
     because the processing functions are idempotent).
     """
 
-    def __init__(self, topic: str, schema_file: str, group_id: str):
+    def __init__(
+        self, topic: str, schema_file: str, group_id: str, auto_offset_reset: str = "earliest"
+    ):
+        """
+        Args:
+            auto_offset_reset: default "earliest" (kafka-playbook §2's at-least-once contract --
+                a real consumer, e.g. alert_bridge.py, must not silently skip a backlog of unread
+                alerts). Pass "latest" for a read-only tail that recreates its consumer (and never
+                commits offsets) on every call -- e.g. the dashboard's live views -- otherwise
+                every call resets to the start of the topic's *entire* history instead of showing
+                what just happened.
+        """
         settings = get_settings()
         self.topic = topic
         self._consumer = Consumer(
             {
                 "bootstrap.servers": settings.kafka.bootstrap_servers,
                 "group.id": group_id,
-                "auto.offset.reset": "earliest",
+                "auto.offset.reset": auto_offset_reset,
                 "enable.auto.commit": False,
             }
         )
