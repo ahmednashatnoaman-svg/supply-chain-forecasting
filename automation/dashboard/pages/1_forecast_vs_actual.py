@@ -1,8 +1,8 @@
 """Forecast-vs-actual view. Implements Ziad plan Task 5 (page 1).
 
 Baseline forecast (nightly, from Redis ``forecast:*``) vs live demand (windowed sales velocity from
-Redis ``velocity:*:60s``). SKUs are discovered from the live ``price:current:*`` keyspace so the
-view tracks whatever the speed layer is actually pricing.
+Redis ``velocity:*:60s``). SKUs are discovered from the ``velocity:*`` keyspace so the view tracks
+whatever the speed layer has actually processed recently.
 """
 
 from __future__ import annotations
@@ -11,6 +11,9 @@ import plotly.graph_objects as go
 
 DEFAULT_WINDOW = "60s"
 _FALLBACK_SKUS = ["10", "20", "30"]
+# A bar per SKU stops being readable well before real-dataset scale (tens of thousands of active
+# SKUs) -- show the most active ones by live velocity, which is what this chart is actually for.
+_MAX_SKUS_SHOWN = 30
 
 
 def render(source=None, skus: list[str] | None = None, window: str = DEFAULT_WINDOW) -> go.Figure:
@@ -26,17 +29,22 @@ def render(source=None, skus: list[str] | None = None, window: str = DEFAULT_WIN
         from automation.dashboard.components import redis_source as source
 
     if skus is None:
-        skus = source.list_skus() or _FALLBACK_SKUS
+        skus = source.list_skus(window) or _FALLBACK_SKUS
 
-    labels = [str(s) for s in skus]
-    forecast = [source.get_forecast(s) or 0 for s in skus]
-    actual = [source.get_velocity(s, window) or 0 for s in skus]
+    forecasts = source.get_forecasts(skus)
+    velocities = source.get_velocities(skus, window)
+
+    # Most active by live velocity first, capped to stay chart-readable.
+    shown = sorted(skus, key=lambda s: velocities.get(s, 0), reverse=True)[:_MAX_SKUS_SHOWN]
+    labels = [str(s) for s in shown]
+    forecast = [forecasts.get(s, 0) for s in shown]
+    actual = [velocities.get(s, 0) for s in shown]
 
     fig = go.Figure()
     fig.add_bar(x=labels, y=forecast, name="Baseline forecast")
     fig.add_bar(x=labels, y=actual, name=f"Live velocity ({window})")
     fig.update_layout(
-        title="Forecast vs live demand by SKU",
+        title=f"Forecast vs live demand — top {len(shown)} SKUs by live velocity",
         xaxis_title="SKU",
         yaxis_title="Units",
         barmode="group",

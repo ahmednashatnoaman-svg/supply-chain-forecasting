@@ -42,7 +42,14 @@ with DAG(
     run_batch_pipeline = DockerOperator(
         task_id="run_batch_pipeline",
         image="scf-batch-pipeline:latest",
-        container_name="scf-batch-pipeline-run",
+        # No fixed container_name: Docker auto-generates a unique one per run. A fixed name
+        # collides (409 Conflict) with any leftover container from a previous run, a manual
+        # `docker run` of the same image, or the next scheduled/retried run before this one's
+        # cleaned up -- observed repeatedly failing real DAG runs for exactly this reason. The
+        # cost is Prometheus's static `scf-batch-pipeline-run:8001` scrape target won't resolve
+        # during Airflow-launched runs (already a no-op the rest of the time -- see
+        # docs/runbooks/orchestration-guide.md §3, this is a one-shot job Prometheus is expected
+        # to see "down" between runs regardless).
         api_version="auto",
         auto_remove="success",
         docker_url="unix://var/run/docker.sock",

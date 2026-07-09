@@ -34,12 +34,18 @@ def test_get_velocity_and_missing(fake_redis):
     assert redis_source.get_velocity("999") is None
 
 
-def test_list_skus_discovers_active_prices(fake_redis):
+def test_list_skus_discovers_active_velocities(fake_redis):
     from automation.dashboard.components import redis_source
 
     assert redis_source.list_skus() == []
+    # price:current:* is seeded catalog-wide by batch.etl.pricing (every SKU, live or not) --
+    # list_skus() must key off velocity:*, the speed layer's own "I actually processed this SKU
+    # this window" signal, or every dashboard view would try to render the entire catalog.
     for sku, price in [("10", 9.99), ("30", 4.5), ("20", 19.0)]:
         fake_redis.set(f"price:current:{sku}", price)
+    assert redis_source.list_skus() == []
+    for sku, velocity in [("10", 1.0), ("30", 2.0), ("20", 3.0)]:
+        fake_redis.set(f"velocity:{sku}:60s", velocity)
     assert redis_source.list_skus() == ["10", "20", "30"]
 
 

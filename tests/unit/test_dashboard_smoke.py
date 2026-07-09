@@ -30,6 +30,7 @@ def fake_source(monkeypatch):
     client.set("forecast:30", 40.0)
     client.set("velocity:10:60s", 15.0)
     client.set("velocity:20:60s", 90.0)
+    client.set("velocity:30:60s", 5.0)  # list_skus() keys off velocity:*, not price:current:*
 
     from automation.dashboard.components import redis_source
 
@@ -56,8 +57,9 @@ def test_forecast_vs_actual_renders_grouped_bars_from_fake_redis(fake_source):
 
 def test_forecast_vs_actual_uses_discovered_skus(fake_source):
     fig = _page("1_forecast_vs_actual").render(fake_source)
-    # the fake Redis priced SKUs 10/20/30
-    assert list(fig.data[0].x) == ["10", "20", "30"]
+    # the fake Redis has velocity for SKUs 10/20/30, shown most-active-by-velocity first
+    # (10->15.0, 20->90.0, 30->5.0)
+    assert list(fig.data[0].x) == ["20", "10", "30"]
 
 
 def test_forecast_vs_actual_respects_window(fake_source):
@@ -77,7 +79,8 @@ def test_price_ticker_falls_back_to_redis_snapshot(fake_source):
     fig = _page("2_price_ticker").render(source=fake_source)
     assert isinstance(fig, plotly.Figure)
     assert len(fig.data) == 1  # one bar series (snapshot)
-    assert list(fig.data[0].x) == ["10", "20", "30"]
+    # most-active-by-velocity first (10->15.0, 20->90.0, 30->5.0), same ordering as page 1
+    assert list(fig.data[0].x) == ["20", "10", "30"]
 
 
 def test_price_ticker_renders_live_time_series():
