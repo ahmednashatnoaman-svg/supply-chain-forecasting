@@ -63,15 +63,16 @@ Members M1–M4 run **in parallel** against M0 mocks; integration happens contin
 
 ## 3. Cross-plan dependency graph
 
-```
-                 ┌─────────────── M0: contracts + skeleton (ALL) ───────────────┐
-                 │                                                                │
-        Nagy(infra) ──provides cluster──▶ everyone                                │
-        Hatem(ingest) ──live_web_traffic + HDFS bronze──▶ Nashat, Emad            │
-        Emad(batch) ──Redis: forecast:*, graph:*──▶ Nashat                        │
-        Nashat(speed) ──automated_pricing_updates, system_alerts──▶ Ziad          │
-        Ziad(serving) ──dashboard + n8n──▶ business                               │
-                 └────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+  subgraph M0["M0: contracts + skeleton (ALL)"]
+    NAGY["Nagy (infra)"] -->|provides cluster| ALL[everyone]
+    HATEM["Hatem (ingest)"] -->|live_web_traffic + HDFS bronze| NASHAT["Nashat (speed)"]
+    HATEM -->|live_web_traffic + HDFS bronze| EMAD["Emad (batch)"]
+    EMAD -->|"Redis: forecast:*, graph:*"| NASHAT
+    NASHAT -->|automated_pricing_updates, system_alerts| ZIAD["Ziad (serving)"]
+    ZIAD -->|dashboard + n8n| BIZ[business]
+  end
 ```
 
 **Blocking edges:** Emad's Redis publish (M2) blocks Nashat's full pricing (M3). Mitigation: Nashat

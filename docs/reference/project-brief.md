@@ -45,40 +45,16 @@ To utilize the full power of Apache Spark, we divide the system into four execut
 
 # **3\. The Full End-to-End Professional User Journey**
 
-To see how an enterprise executive leverages this unified AI stack, let's map out the operational lifecycle of a single viral product event:  
-\[Historical Transaction Data in HDFS\]  
-                │  
-                ▼ (Nightly Batch Execution)  
-┌────────────────────────────────────────────────────────┐
+To see how an enterprise executive leverages this unified AI stack, let's map out the operational lifecycle of a single viral product event:
 
-1. Spark MLlib trains Baseline Demand Forecasts  
-2. Spark GraphX updates the Product Cross-Elasticity
-
-└────────────────────────────────────────────────────────┘  
-                │  
-                ▼ (Deployed to Live Production Environment)  
-┌────────────────────────────────────────────────────────┐
-
-3. Social Media Influencer Sparks a Viral Buying Wave
-
-└────────────────────────────────────────────────────────┘  
-                │  
-                ▼ (Continuous Stream Processing)  
-┌────────────────────────────────────────────────────────┐
-
-4. Kafka ingests High-Velocity Web Click Traffic  
-5. Deep Learning (LSTM) identifies Surge Behavior  
-6. Spark Streaming computes New Price via Elasticity
-
-└────────────────────────────────────────────────────────┘  
-                │  
-                ▼ (Automated Operational Close)  
-┌────────────────────────────────────────────────────────┐
-
-7. Automated Price Update Pushed back to Web Frontend  
-8. n8n Pipeline dispatches Emergency Reorder to Vendor
-
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+  A["Historical Transaction Data in HDFS"] -->|Nightly Batch Execution| B
+  B["1. Spark MLlib trains Baseline Demand Forecasts\n2. Spark GraphX updates the Product Cross-Elasticity"] -->|Deployed to Live Production Environment| C
+  C["3. Social Media Influencer Sparks a Viral Buying Wave"] -->|Continuous Stream Processing| D
+  D["4. Kafka ingests High-Velocity Web Click Traffic\n5. Deep Learning (LSTM) identifies Surge Behavior\n6. Spark Streaming computes New Price via Elasticity"] -->|Automated Operational Close| E
+  E["7. Automated Price Update Pushed back to Web Frontend\n8. n8n Pipeline dispatches Emergency Reorder to Vendor"]
+```
 
 ### 
 
