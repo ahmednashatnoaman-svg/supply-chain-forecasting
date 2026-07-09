@@ -18,13 +18,17 @@ _FALLBACK_SKUS = ["10", "20", "30"]
 _MAX_SKUS_SHOWN = 30
 
 
-def _event_time_ms(raw: int | datetime) -> int:
-    """Normalize a decoded ``event_time`` to epoch millis.
+def _event_time_dt(raw: int | datetime) -> datetime:
+    """Normalize a decoded ``event_time`` to datetime.
 
     The contract's ``event_time`` is Avro logical type timestamp-millis, which the schema-registry
     deserializer decodes to a ``datetime`` in real Kafka use; unit tests pass plain ints.
     """
-    return int(raw.timestamp() * 1000) if isinstance(raw, datetime) else int(raw)
+    return (
+        datetime.fromtimestamp(raw.timestamp())
+        if isinstance(raw, datetime)
+        else datetime.fromtimestamp(raw / 1000.0)
+    )
 
 
 def render(events: list[dict] | None = None, source=None) -> go.Figure:
@@ -39,10 +43,10 @@ def render(events: list[dict] | None = None, source=None) -> go.Figure:
     fig = go.Figure()
 
     if events:
-        by_sku: dict[str, list[tuple[int, float]]] = {}
+        by_sku: dict[str, list[tuple[datetime, float]]] = {}
         for e in events:
             by_sku.setdefault(str(e["item_id"]), []).append(
-                (_event_time_ms(e["event_time"]), float(e["new_price"]))
+                (_event_time_dt(e["event_time"]), float(e["new_price"]))
             )
         for sku, pts in by_sku.items():
             pts.sort(key=lambda p: p[0])
@@ -54,7 +58,7 @@ def render(events: list[dict] | None = None, source=None) -> go.Figure:
             )
         fig.update_layout(
             title="Live autonomous price changes",
-            xaxis_title="Event time (ms)",
+            xaxis_title="Event time",
             yaxis_title="Price",
         )
         return fig
@@ -93,10 +97,19 @@ if __name__ == "__main__":  # rendered by Streamlit
 
         st.header("Autonomous Price Ticker")
 
+        if "price_events" not in st.session_state:
+            st.session_state["price_events"] = []
+
         @st.fragment(run_every="5s")
         def _live_ticker() -> None:
             updates = collect_price_updates()
-            st.plotly_chart(render(events=updates), use_container_width=True)
+            if updates:
+                st.session_state["price_events"].extend(updates)
+                # Keep the last 1000 events to prevent memory bloat
+                st.session_state["price_events"] = st.session_state["price_events"][-1000:]
+            st.plotly_chart(
+                render(events=st.session_state["price_events"]), use_container_width=True
+            )
 
         _live_ticker()
     except Exception:  # pragma: no cover - importable without a running Streamlit server
