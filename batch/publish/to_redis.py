@@ -18,15 +18,22 @@ log = get_logger("batch.publish")
 
 
 def publish_forecasts(
-    forecast_df: DataFrame, graph_df: DataFrame, inventory_df: DataFrame | None = None
+    forecast_df: DataFrame,
+    graph_df: DataFrame,
+    inventory_df: DataFrame | None = None,
+    pricing_df: DataFrame | None = None,
 ) -> int:
-    """Publish forecasts + elasticity + inventory to Redis; return number of SKUs written.
+    """Publish forecasts + elasticity + inventory + catalog price to Redis; return SKU count.
 
     Args:
         forecast_df: [item_id, forecast_demand].
         graph_df: [item_id, related_item_id, elasticity_weight, community].
         inventory_df: optional [item_id, stock] from batch.etl.inventory.build_inventory. When
             omitted, inventory keys are left untouched (existing values, if any, are preserved).
+        pricing_df: optional [item_id, catalog_price] from batch.etl.pricing.build_pricing. Seeds
+            `price:current:*` -- the streaming engine's `price_row` only ever *adjusts* whatever is
+            already there (falling back to this seed when a live event carries no price of its
+            own), so without this the streaming-computed price is permanently 0 for every SKU.
     """
     r = get_redis()
     # Collect elasticity into per-SKU JSON lists (small after aggregation).
@@ -43,6 +50,10 @@ def publish_forecasts(
     if inventory_df is not None:
         inventory_map = {row["item_id"]: int(row["stock"]) for row in inventory_df.collect()}
 
+    pricing_map: dict[int, float] = {}
+    if pricing_df is not None:
+        pricing_map = {row["item_id"]: float(row["catalog_price"]) for row in pricing_df.collect()}
+
     forecast_map: dict[int, float] = {
         row["item_id"]: float(row["forecast_demand"]) for row in forecast_df.collect()
     }
@@ -50,8 +61,11 @@ def publish_forecasts(
     # forecast_df only covers each item's *latest* unlabeled day (see train_forecast), a much
     # smaller set than every item that ever appears in the graph's transaction history -- looping
     # over forecast_df alone silently dropped elasticity/community for every SKU outside that
-    # narrow overlap. Union all four sources so each SKU gets whichever data is available for it.
-    all_skus = set(forecast_map) | set(elasticity_map) | set(community_map) | set(inventory_map)
+    # narrow overlap. Union all five sources so each SKU gets whichever data is available for it.
+    all_skus = (
+        set(forecast_map) | set(elasticity_map) | set(community_map) | set(inventory_map)
+        | set(pricing_map)
+    )
 
     count = 0
     for sku in all_skus:
@@ -64,6 +78,10 @@ def publish_forecasts(
             pipe.set(RedisKeys.community(sku), community_map[sku])
         if sku in inventory_map:
             pipe.set(RedisKeys.inventory(sku), inventory_map[sku])
+        if sku in pricing_map:
+            # NX: never clobber a live streaming-computed price with the stale nightly catalog
+            # seed -- this key is only meant to *bootstrap* SKUs that don't have one yet.
+            pipe.set(RedisKeys.price(sku), pricing_map[sku], nx=True)
         pipe.execute()  # atomic per SKU
         count += 1
     RECORDS_PROCESSED.labels(component="batch.publish").inc(count)
