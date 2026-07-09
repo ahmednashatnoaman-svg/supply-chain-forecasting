@@ -13,22 +13,13 @@ MLflow instance (`infra/docker/docker-compose.yml`'s `mlflow` service, profile `
 
 ## 2. Lifecycle: train → log → register → promote
 
-```
-train (batch/mllib/forecast.py or streaming/lstm/model.py)
-        │
-        ▼
-mlflow.spark.log_model(...) / mlflow.pytorch.log_model(...)   # artifact + params + metrics
-        │
-        ▼
-Model Registry: registered_model_name="demand_forecast"        # version N created, stage=None
-        │
-        ▼  (manual or scripted validation against a holdout set)
-        ▼
-transition to stage="Staging"                                  # candidate for the pricing stream
-        │
-        ▼  (canary: run alongside current Production model, compare)
-        ▼
-transition to stage="Production"                                # streaming job loads this stage
+```mermaid
+flowchart TD
+  A["train (batch/mllib/forecast.py or streaming/lstm/model.py)"] --> B
+  B["mlflow.spark.log_model(...) / mlflow.pytorch.log_model(...)\n(artifact + params + metrics)"] --> C
+  C["Model Registry: registered_model_name='demand_forecast'\n(version N created, stage=None)"] -->|manual/scripted validation\nagainst a holdout set| D
+  D["transition to stage='Staging'\n(candidate for the pricing stream)"] -->|canary: run alongside current\nProduction model, compare| E
+  E["transition to stage='Production'\n(streaming job loads this stage)"]
 ```
 
 - **Never skip Staging.** The pricing engine reads whatever is tagged `Production` in MLflow — promote

@@ -11,25 +11,21 @@ Built on **Apache Spark** (SQL, MLlib, GraphFrames, Structured Streaming, Deep L
 
 ## Architecture at a glance
 
-```
-Retailrocket CSVs ─▶ HDFS (bronze/silver/gold)
-                          │  nightly batch (Airflow)
-        ┌─────────────────┴─────────────────┐
-        ▼                                     ▼
-  MLlib demand forecast              GraphFrames cross-elasticity
-        └─────────────┬───────────────────────┘
-                      ▼  publish
-                    REDIS  ◀────────────┐  read
-                      ▲                 │
-   Kafka: live_web_traffic ─▶ Spark Structured Streaming
-                                        │ + LSTM surge classifier
-                                        │ + dynamic pricing formula
-                                        ▼ produce
-                       automated_pricing_updates / system_alerts
-                                        │
-                     ┌──────────────────┴───────────────┐
-                     ▼                                   ▼
-             n8n auto-reorder                  Streamlit dashboard
+```mermaid
+flowchart LR
+  CSV[Retailrocket CSVs] -->|nightly batch, Airflow| HDFS[(HDFS\nbronze/silver/gold)]
+  HDFS --> FC[MLlib demand forecast]
+  HDFS --> GR[GraphFrames cross-elasticity]
+  FC -->|publish| REDIS[(Redis)]
+  GR -->|publish| REDIS
+
+  KAFKA[Kafka: live_web_traffic] --> STREAM[Spark Structured Streaming]
+  REDIS -->|read| STREAM
+  STREAM -->|LSTM surge classifier +\ndynamic pricing formula| OUT[[automated_pricing_updates /\nsystem_alerts]]
+
+  OUT --> N8N[n8n auto-reorder]
+  OUT --> DASH[Streamlit dashboard]
+  REDIS -->|read| DASH
 ```
 
 See [`docs/architecture/system-design.md`](docs/architecture/system-design.md) for the full design
