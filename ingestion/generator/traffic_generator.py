@@ -14,7 +14,12 @@ from pathlib import Path
 
 from ingestion.generator.surge import SurgeSchedule
 from libs.scf_common.contracts import Topics
-from libs.scf_common.observability import ERRORS_TOTAL, RECORDS_PROCESSED, get_logger
+from libs.scf_common.observability import (
+    ERRORS_TOTAL,
+    RECORDS_PROCESSED,
+    get_logger,
+    serve_metrics,
+)
 
 EVENT_ENUM = {"view", "addtocart", "transaction"}
 
@@ -165,6 +170,7 @@ def _cli() -> None:  # pragma: no cover
     p.add_argument("--limit", type=int, default=None, help="max events to produce")
     p.add_argument("--config", type=Path, default=_CONFIG_PATH, help="path to generator.yaml")
     args = p.parse_args()
+    serve_metrics(port=8002)
     run_from_config(config_path=args.config, limit=args.limit, speed_override=args.speed)
 
 
