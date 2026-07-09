@@ -62,7 +62,12 @@ def main() -> None:  # pragma: no cover - needs Spark + HDFS
     preds.write.parquet(HdfsPaths.gold("forecast"), mode="overwrite")
 
     # 5. Build Graph
-    edges = build_graph(silver_df)
+    # cooccurrence_edges self-joins on visitor_id -- it must only see transaction rows (its own
+    # docstring's contract). Passing the full silver_df (views + addtocart + transactions) blows
+    # the join up combinatorially across every click a visitor ever made, not just their
+    # purchases, and OOMs the executor on the real dataset's view-heavy event mix.
+    transactions = silver_df.filter(F.col("event") == "transaction")
+    edges = build_graph(transactions)
     edges.write.parquet(HdfsPaths.gold("graph"), mode="overwrite")
 
     # 6. Build Inventory (from Retailrocket's real item_properties `available` signal)
