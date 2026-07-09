@@ -42,4 +42,9 @@ def get_spark(app_suffix: str = "") -> SparkSession:
         # Redis publish reads small per-SKU tables — keep the broadcast-join threshold generous.
         .config("spark.sql.autoBroadcastJoinThreshold", "50m")
     )
+    # Standalone mode (spark://...) gives one app ALL cores on a worker unless capped, starving
+    # any other app that starts while it's running (see SparkSettings.cores_max). Irrelevant for
+    # local[*], which has no separate worker to share.
+    if settings.spark.master.startswith("spark://") and settings.spark.cores_max:
+        builder = builder.config("spark.cores.max", settings.spark.cores_max)
     return builder.getOrCreate()
