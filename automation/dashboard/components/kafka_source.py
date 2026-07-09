@@ -5,9 +5,14 @@ plain list of dicts so the page ``render()`` functions stay pure and unit-testab
 Streamlit run calls ``collect_*()`` then passes the result to ``render(events=...)``; unit tests
 call ``render(events=[...synthetic...])`` with no broker.
 
-Consumers use a dedicated dashboard group id and never commit offsets (``auto.offset.reset``
-defaults to ``earliest``), so a freshly-launched dashboard replays recent history on first poll —
-acceptable for a "command center" view and avoids losing the audit trail between restarts.
+Consumers use a dedicated dashboard group id, never commit offsets, and reset to ``latest`` -- a
+new ``AvroKafkaConsumer`` is created on *every* Streamlit fragment rerun (every 5s), not once per
+dashboard session, so ``earliest`` (this project's default for real consumers, e.g. alert_bridge.py)
+would replay the topic's entire history from scratch on every single refresh -- for a long-running
+topic that means always showing the same multi-hour-old messages instead of what just happened.
+``latest`` means each 5s refresh shows whatever's new since the last one; a real gap between polls
+can miss a message, which is the right tradeoff for a live "what's happening now" view (unlike
+alert_bridge.py, which must not silently skip a real business action).
 """
 
 from __future__ import annotations
@@ -40,7 +45,9 @@ def _collect(
     else:
         from libs.scf_common.io.kafka import AvroKafkaConsumer
 
-        consumer = AvroKafkaConsumer(topic, schema_file, group_id=group_id)
+        consumer = AvroKafkaConsumer(
+            topic, schema_file, group_id=group_id, auto_offset_reset="latest"
+        )
     events: list[dict] = []
     try:
         deadline = time.time() + 30.0
