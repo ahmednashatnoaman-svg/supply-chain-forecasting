@@ -35,6 +35,8 @@ contracts that let all five layers integrate.
 **Diagrams (Miro):** [Supply Chain Forecasting — System Design](https://miro.com/app/board/uXjVH99Wkbw=/)
 — architecture, user stories, system design, and per-layer (Spark/Kafka/Hadoop) diagrams.
 
+**Demo (Canva):** [Project walkthrough](https://canva.link/sfjo8nfgzsi8tfw)
+
 ## Team & ownership
 
 | Member | Layer owned | Directory |
