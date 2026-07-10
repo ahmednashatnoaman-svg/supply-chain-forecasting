@@ -140,7 +140,7 @@ wedging, Docker Hub rate limits, Grafana password resets) — see
 
 ## Docker images
 
-Each of the 4 custom services builds its own image from `infra/docker/*.Dockerfile` and is published
+Each of the 5 custom services builds its own image from `infra/docker/*.Dockerfile` and is published
 publicly on Docker Hub under [`ahmednashat1`](https://hub.docker.com/u/ahmednashat1):
 
 | Image | Docker Hub | Builds from | Base |
@@ -149,14 +149,15 @@ publicly on Docker Hub under [`ahmednashat1`](https://hub.docker.com/u/ahmednash
 | `scf-pricing-stream` | [ahmednashat1/scf-pricing-stream](https://hub.docker.com/r/ahmednashat1/scf-pricing-stream) | `infra/docker/pricing-stream.Dockerfile` | `apache/spark:3.5.1` (same jars as the cluster) |
 | `scf-batch-pipeline` | [ahmednashat1/scf-batch-pipeline](https://hub.docker.com/r/ahmednashat1/scf-batch-pipeline) | `infra/docker/batch-pipeline.Dockerfile` | `apache/spark:3.5.1` |
 | `scf-traffic-generator` | [ahmednashat1/scf-traffic-generator](https://hub.docker.com/r/ahmednashat1/scf-traffic-generator) | `infra/docker/traffic-generator.Dockerfile` | `python:3.10-slim` |
+| `scf-airflow` | [ahmednashat1/scf-airflow](https://hub.docker.com/r/ahmednashat1/scf-airflow) | `infra/docker/airflow.Dockerfile` | `apache/airflow:2.9.2` |
 
 ```bash
 docker pull ahmednashat1/scf-dashboard:latest
-# (repeat for the other 3), or build locally instead:
+# (repeat for the other 4), or build locally instead:
 docker build -f infra/docker/dashboard.Dockerfile -t scf-dashboard .
 ```
 
-All 4 are public — no Docker Hub auth needed to pull. Every other service in `docker-compose.yml`
+All 5 are public — no Docker Hub auth needed to pull. Every other service in `docker-compose.yml`
 also pulls a public prebuilt image, so `make up` needs no Docker Hub auth at all either way.
 
 ## Tech stack
